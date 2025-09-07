@@ -1,0 +1,127 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User, UserDocument } from '../common/schemas/user.schema';
+
+@Injectable()
+export class UsersService {
+  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+
+  async findById(id: string): Promise<User> {
+    const user = await this.userModel.findById(id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
+  async findByEmail(email: string): Promise<User> {
+    return this.userModel.findOne({ email });
+  }
+
+  async updateProfile(userId: string, updateData: Partial<User>): Promise<User> {
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true }
+    );
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
+  async uploadBodyPhoto(userId: string, photoUrl: string, photoType: 'front' | 'back' | 'left' | 'fullBody'): Promise<User> {
+    const user = await this.findById(userId);
+    const bodyPhotos = user.bodyPhotos || {};
+    bodyPhotos[photoType] = photoUrl;
+    return this.updateProfile(userId, { bodyPhotos });
+  }
+
+  async uploadEquipmentPhotos(userId: string, photoUrls: string[]): Promise<User> {
+    return this.updateProfile(userId, { equipmentPhotos: photoUrls });
+  }
+
+  async completeOnboarding(userId: string, onboardingData: {
+    age: number;
+    height: number;
+    weight: number;
+    fitnessGoal: string;
+    experienceLevel: string;
+    workoutHistory: string;
+    bodyPhotos: { front?: string; back?: string; left?: string; fullBody?: string };
+    equipmentPhotos: string[];
+    selectedEquipment: string[];
+  }): Promise<User> {
+    return this.updateProfile(userId, {
+      age: onboardingData.age,
+      height: onboardingData.height,
+      weight: onboardingData.weight,
+      fitnessGoal: onboardingData.fitnessGoal as any,
+      experienceLevel: onboardingData.experienceLevel as any,
+      workoutHistory: onboardingData.workoutHistory as any,
+      bodyPhotos: onboardingData.bodyPhotos,
+      equipmentPhotos: onboardingData.equipmentPhotos,
+      selectedEquipment: onboardingData.selectedEquipment,
+      onboardingCompleted: true,
+      onboardingProgress: {
+        profileInfoCompleted: true,
+        bodyPhotosCompleted: true,
+        equipmentPhotosCompleted: true,
+        currentStep: 4,
+      },
+    });
+  }
+
+  async updateSelectedEquipment(userId: string, equipment: string[]): Promise<User> {
+    return this.updateProfile(userId, { selectedEquipment: equipment });
+  }
+
+  async incrementFreeTrialInstructions(userId: string): Promise<User> {
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      { $inc: { freeTrialInstructionsUsed: 1 } },
+      { new: true }
+    );
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
+  async isFreeTrialActive(userId: string): Promise<boolean> {
+    const user = await this.findById(userId);
+    if (!user.hasUsedFreeTrial) return false;
+
+    const trialDays = parseInt(process.env.FREE_TRIAL_DAYS || '5');
+    const trialEndDate = new Date(user.freeTrialStartDate);
+    trialEndDate.setDate(trialEndDate.getDate() + trialDays);
+
+    return new Date() <= trialEndDate;
+  }
+
+  async getFreeTrialInstructionsRemaining(userId: string): Promise<number> {
+    const user = await this.findById(userId);
+    const freeTrialLimit = parseInt(process.env.FREE_TRIAL_INSTRUCTIONS || '1');
+    return Math.max(0, freeTrialLimit - user.freeTrialInstructionsUsed);
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return this.userModel.find().select('-password -refreshToken');
+  }
+
+  async suspendUser(userId: string): Promise<User> {
+    return this.updateProfile(userId, { isActive: false });
+  }
+
+  async activateUser(userId: string): Promise<User> {
+    return this.updateProfile(userId, { isActive: true });
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    const result = await this.userModel.findByIdAndDelete(userId);
+    if (!result) {
+      throw new NotFoundException('User not found');
+    }
+  }
+}

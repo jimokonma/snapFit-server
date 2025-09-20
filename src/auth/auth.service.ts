@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -297,5 +297,107 @@ export class AuthService {
     } catch (error) {
       throw new UnauthorizedException('Invalid Google token');
     }
+  }
+
+  // Step-by-step onboarding methods
+  async saveProfileInfo(userId: string, profileInfoDto: any): Promise<User> {
+    const { gender, age, height, weight } = profileInfoDto;
+    
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      {
+        gender,
+        age: parseInt(age),
+        height: parseInt(height),
+        weight: parseInt(weight),
+        onboardingProgress: {
+          profileInfoCompleted: true,
+          bodyPhotosCompleted: false,
+          equipmentPhotosCompleted: false,
+          currentStep: 1,
+        },
+      },
+      { new: true }
+    );
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
+
+  async saveFitnessGoal(userId: string, fitnessGoalDto: any): Promise<User> {
+    const { fitnessGoal } = fitnessGoalDto;
+    
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      {
+        fitnessGoal,
+        onboardingProgress: {
+          profileInfoCompleted: true,
+          bodyPhotosCompleted: false,
+          equipmentPhotosCompleted: false,
+          currentStep: 2,
+        },
+      },
+      { new: true }
+    );
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
+
+  async saveBodyPhotos(userId: string, bodyPhotosDto: any): Promise<User> {
+    const { bodyPhotos } = bodyPhotosDto;
+    
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      {
+        bodyPhotos,
+        onboardingProgress: {
+          profileInfoCompleted: true,
+          bodyPhotosCompleted: true,
+          equipmentPhotosCompleted: false,
+          currentStep: 3,
+        },
+      },
+      { new: true }
+    );
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
+
+  async saveEquipmentPhotos(userId: string, equipmentPhotosDto: any): Promise<User> {
+    const { equipmentPhotos, selectedEquipment } = equipmentPhotosDto;
+    
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      {
+        equipmentPhotos,
+        selectedEquipment,
+        onboardingCompleted: true,
+        onboardingProgress: {
+          profileInfoCompleted: true,
+          bodyPhotosCompleted: true,
+          equipmentPhotosCompleted: true,
+          currentStep: 4,
+        },
+      },
+      { new: true }
+    );
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
   }
 }

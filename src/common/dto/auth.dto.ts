@@ -66,6 +66,52 @@ export class OnboardingDto {
   selectedEquipment?: string[];
 }
 
+// Step-by-step onboarding DTOs
+export class ProfileInfoDto {
+  @ApiProperty({ example: 'male', enum: ['male', 'female'] })
+  @IsString()
+  gender: 'male' | 'female';
+
+  @ApiProperty({ example: 25 })
+  @IsString()
+  age: string;
+
+  @ApiProperty({ example: 175 })
+  @IsString()
+  height: string;
+
+  @ApiProperty({ example: 70 })
+  @IsString()
+  weight: string;
+}
+
+export class FitnessGoalDto {
+  @ApiProperty({ example: 'muscle_gain' })
+  @IsString()
+  fitnessGoal: string;
+}
+
+export class BodyPhotosDto {
+  @ApiProperty({ example: { front: 'url1', back: 'url2', left: 'url3' } })
+  @IsOptional()
+  bodyPhotos?: {
+    front?: string;
+    back?: string;
+    left?: string;
+    fullBody?: string;
+  };
+}
+
+export class EquipmentPhotosDto {
+  @ApiProperty({ example: ['url1', 'url2', 'url3'] })
+  @IsOptional()
+  equipmentPhotos?: string[];
+
+  @ApiProperty({ example: ['dumbbells', 'resistance_bands'] })
+  @IsOptional()
+  selectedEquipment?: string[];
+}
+
 export class VerifyEmailDto {
   @ApiProperty({ example: 'verification-token-here' })
   @IsString()

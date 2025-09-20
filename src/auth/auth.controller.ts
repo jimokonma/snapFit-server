@@ -2,7 +2,7 @@ import { Controller, Post, Body, UseGuards, Get, Request, HttpCode, HttpStatus }
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { RegisterDto, LoginDto, RefreshTokenDto, OnboardingDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ResendVerificationDto, GoogleAuthDto } from '../common/dto/auth.dto';
+import { RegisterDto, LoginDto, RefreshTokenDto, OnboardingDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ResendVerificationDto, GoogleAuthDto, ProfileInfoDto, FitnessGoalDto, BodyPhotosDto, EquipmentPhotosDto } from '../common/dto/auth.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -42,6 +42,43 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Onboarding completed successfully' })
   async completeOnboarding(@Request() req, @Body() onboardingDto: OnboardingDto) {
     return this.authService.completeOnboarding(req.user.sub, onboardingDto);
+  }
+
+  // Step-by-step onboarding endpoints
+  @Post('onboarding/profile-info')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Save profile information (Step 1)' })
+  @ApiResponse({ status: 200, description: 'Profile information saved successfully' })
+  async saveProfileInfo(@Request() req, @Body() profileInfoDto: ProfileInfoDto) {
+    return this.authService.saveProfileInfo(req.user.sub, profileInfoDto);
+  }
+
+  @Post('onboarding/fitness-goal')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Save fitness goal (Step 2)' })
+  @ApiResponse({ status: 200, description: 'Fitness goal saved successfully' })
+  async saveFitnessGoal(@Request() req, @Body() fitnessGoalDto: FitnessGoalDto) {
+    return this.authService.saveFitnessGoal(req.user.sub, fitnessGoalDto);
+  }
+
+  @Post('onboarding/body-photos')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Save body photos (Step 3)' })
+  @ApiResponse({ status: 200, description: 'Body photos saved successfully' })
+  async saveBodyPhotos(@Request() req, @Body() bodyPhotosDto: BodyPhotosDto) {
+    return this.authService.saveBodyPhotos(req.user.sub, bodyPhotosDto);
+  }
+
+  @Post('onboarding/equipment-photos')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Save equipment photos (Step 4)' })
+  @ApiResponse({ status: 200, description: 'Equipment photos saved successfully' })
+  async saveEquipmentPhotos(@Request() req, @Body() equipmentPhotosDto: EquipmentPhotosDto) {
+    return this.authService.saveEquipmentPhotos(req.user.sub, equipmentPhotosDto);
   }
 
   @Post('logout')

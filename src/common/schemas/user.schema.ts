@@ -39,6 +39,9 @@ export class User {
   @Prop()
   lastName: string;
 
+  @Prop({ enum: ['male', 'female'] })
+  gender: 'male' | 'female';
+
   @Prop({ default: false })
   isEmailVerified: boolean;
 

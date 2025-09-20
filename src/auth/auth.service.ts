@@ -30,9 +30,9 @@ export class AuthService {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Generate email verification token
-    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
-    const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    // Generate email verification OTP (6 digits)
+    const emailVerificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+    const emailVerificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Create user
     const user = new this.userModel({
@@ -200,9 +200,9 @@ export class AuthService {
       throw new BadRequestException('Email is already verified');
     }
 
-    // Generate new verification token
-    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
-    const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    // Generate new verification OTP (6 digits)
+    const emailVerificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+    const emailVerificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     user.emailVerificationToken = emailVerificationToken;
     user.emailVerificationExpires = emailVerificationExpires;

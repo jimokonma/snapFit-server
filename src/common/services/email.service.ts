@@ -16,9 +16,7 @@ export class EmailService {
     });
   }
 
-  async sendVerificationEmail(email: string, token: string): Promise<void> {
-    const verificationUrl = `${this.configService.get<string>('FRONTEND_URL')}/verify-email?token=${token}`;
-    
+  async sendVerificationEmail(email: string, otp: string): Promise<void> {
     const mailOptions = {
       from: this.configService.get<string>('GMAIL_USER'),
       to: email,
@@ -34,27 +32,22 @@ export class EmailService {
             <h2 style="color: #333; margin-bottom: 20px;">Welcome to SnapFit!</h2>
             <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
               Thank you for signing up! To complete your registration and start your fitness journey, 
-              please verify your email address by clicking the button below.
+              please verify your email address using the OTP code below.
             </p>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${verificationUrl}" 
-                 style="background: #228B22; color: white; padding: 15px 30px; text-decoration: none; 
-                        border-radius: 8px; font-weight: bold; display: inline-block;">
-                Verify Email Address
-              </a>
+              <div style="background: #228B22; color: white; padding: 20px; border-radius: 8px; 
+                          font-size: 32px; font-weight: bold; letter-spacing: 5px; display: inline-block;">
+                ${otp}
+              </div>
             </div>
             
             <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-              If the button doesn't work, you can also copy and paste this link into your browser:
-            </p>
-            <p style="color: #228B22; word-break: break-all; background: #f0f0f0; padding: 10px; border-radius: 4px;">
-              ${verificationUrl}
+              Enter this code in the app to verify your email address. This code will expire in 10 minutes.
             </p>
             
             <p style="color: #666; line-height: 1.6; margin-top: 30px; font-size: 14px;">
-              This verification link will expire in 24 hours. If you didn't create an account with SnapFit, 
-              please ignore this email.
+              If you didn't create an account with SnapFit, please ignore this email.
             </p>
           </div>
           

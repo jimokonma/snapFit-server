@@ -11,6 +11,7 @@ import { MediaModule } from './media/media.module';
 import { ProgressModule } from './progress/progress.module';
 import { AdminModule } from './admin/admin.module';
 import { HealthModule } from './health/health.module';
+import { TestModule } from './test/test.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { HealthModule } from './health/health.module';
       envFilePath: '.env',
     }),
     MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/snapfit'),
+    TestModule,
     AuthModule,
     UsersModule,
     WorkoutsModule,

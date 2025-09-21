@@ -32,6 +32,7 @@ export class AiService {
     };
     detailedDescription: string;
   }> {
+    let response: any;
     try {
       const userContext = userProfile ? `
 User Profile Context:
@@ -43,7 +44,7 @@ User Profile Context:
 - Workout History: ${userProfile.workoutHistory || 'Not specified'}
 ` : '';
 
-      const response = await this.openai.chat.completions.create({
+      response = await this.openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
           {
@@ -57,7 +58,9 @@ User Profile Context:
                 type: 'text',
                 text: `${userContext}
 
-Analyze this body photo and provide a comprehensive physical assessment. Return your analysis in the following JSON format:
+IMPORTANT: You must respond with ONLY valid JSON. Do not include any text before or after the JSON.
+
+Analyze this body photo and provide a comprehensive physical assessment. You must respond with ONLY the following JSON format (no additional text):
 
 {
   "overallAssessment": "Brief overall assessment of the person's current fitness level and body composition",
@@ -78,7 +81,7 @@ Analyze this body photo and provide a comprehensive physical assessment. Return 
   "detailedDescription": "Detailed description of the person's physique, including specific observations about muscle development, body proportions, and physical characteristics that will inform workout planning"
 }
 
-Be specific and detailed in your analysis. Consider the user's profile context if provided.`,
+CRITICAL: Your response must be ONLY the JSON object above. No explanations, no additional text, no markdown formatting. Just the raw JSON.`,
               },
               {
                 type: 'image_url',
@@ -94,8 +97,53 @@ Be specific and detailed in your analysis. Consider the user's profile context i
       });
 
       const content = response.choices[0].message.content;
-      return JSON.parse(content);
+      
+      // Log the raw response for debugging
+      console.log('AI Response:', content);
+      
+      // Try to extract JSON from the response
+      let jsonContent = content;
+      
+      // If the response contains markdown code blocks, extract the JSON
+      const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[1];
+      }
+      
+      // If the response starts with text before JSON, try to find the JSON
+      const jsonStart = jsonContent.indexOf('{');
+      if (jsonStart > 0) {
+        jsonContent = jsonContent.substring(jsonStart);
+      }
+      
+      return JSON.parse(jsonContent);
     } catch (error) {
+      console.error('AI Analysis Error:', error);
+      console.error('Raw AI Response:', response?.choices?.[0]?.message?.content);
+      
+      // If JSON parsing fails, return a fallback response
+      if (error.message.includes('Unexpected token')) {
+        console.log('Returning fallback analysis due to JSON parsing error');
+        return {
+          overallAssessment: "Unable to analyze image - please try with a clearer body photo",
+          bodyComposition: {
+            estimatedBodyFat: "Unable to determine",
+            muscleDevelopment: "Unable to assess from this image",
+            posture: "Unable to assess posture",
+            symmetry: "Unable to assess symmetry"
+          },
+          strengths: ["Please upload a clearer body photo for analysis"],
+          areasForImprovement: ["Image quality needs improvement for accurate assessment"],
+          recommendations: {
+            primaryFocus: "General fitness improvement",
+            secondaryFocus: "Overall health and wellness",
+            workoutIntensity: "beginner",
+            exerciseTypes: ["Cardio", "Strength training", "Flexibility"]
+          },
+          detailedDescription: "Unable to provide detailed analysis due to image quality or content issues. Please ensure the photo shows a clear view of the body and try again."
+        };
+      }
+      
       throw new Error(`Failed to analyze body photo: ${error.message}`);
     }
   }

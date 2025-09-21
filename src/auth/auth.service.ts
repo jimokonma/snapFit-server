@@ -43,6 +43,7 @@ export class AuthService {
       emailVerificationToken,
       emailVerificationExpires,
       isEmailVerified: false,
+      isActive: true,
       freeTrialStartDate: new Date(),
     });
 
@@ -81,6 +82,12 @@ export class AuthService {
       throw new UnauthorizedException('Please verify your email before logging in');
     }
 
+    // Ensure user is active
+    if (!user.isActive) {
+      user.isActive = true;
+      await user.save();
+    }
+
     // Generate tokens
     const tokens = await this.generateTokens(user);
 
@@ -101,6 +108,7 @@ export class AuthService {
         lastName: name.familyName,
         [`${provider}Id`]: id,
         isEmailVerified: true,
+        isActive: true,
         freeTrialStartDate: new Date(),
       });
       user = await user.save();
@@ -159,9 +167,16 @@ export class AuthService {
 
   async validateUser(userId: string): Promise<UserDocument> {
     const user = await this.userModel.findById(userId);
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('User not found or inactive');
+    if (!user) {
+      throw new UnauthorizedException('User not found');
     }
+    
+    // If user is not active, activate them automatically
+    if (!user.isActive) {
+      user.isActive = true;
+      await user.save();
+    }
+    
     return user;
   }
 

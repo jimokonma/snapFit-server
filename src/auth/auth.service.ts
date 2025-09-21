@@ -122,10 +122,10 @@ export class AuthService {
     return { user, tokens };
   }
 
-  async completeOnboarding(userId: string, onboardingDto: OnboardingDto): Promise<User> {
+  async completeOnboarding(userId: string, onboardingDto: OnboardingDto): Promise<{ message: string; user: any }> {
     const user = await this.userModel.findByIdAndUpdate(
       userId,
-      { ...onboardingDto, hasUsedFreeTrial: true },
+      { ...onboardingDto, hasUsedFreeTrial: true, onboardingCompleted: true },
       { new: true }
     );
 
@@ -133,7 +133,13 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    return user;
+    // Return only safe user data
+    const safeUser = this.getSafeUserData(user);
+
+    return {
+      message: 'Onboarding completed successfully!',
+      user: safeUser
+    };
   }
 
   async refreshTokens(refreshToken: string): Promise<{ tokens: any }> {
@@ -163,6 +169,35 @@ export class AuthService {
     await this.userModel.findByIdAndUpdate(user._id, { refreshToken });
 
     return { accessToken, refreshToken };
+  }
+
+  private getSafeUserData(user: UserDocument): any {
+    return {
+      _id: user._id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      isEmailVerified: user.isEmailVerified,
+      onboardingCompleted: user.onboardingCompleted,
+      isActive: user.isActive,
+      freeTrialStartDate: user.freeTrialStartDate,
+      hasUsedFreeTrial: user.hasUsedFreeTrial,
+      freeTrialInstructionsUsed: user.freeTrialInstructionsUsed,
+      createdAt: (user as any).createdAt,
+      updatedAt: (user as any).updatedAt,
+      // Onboarding data
+      age: user.age,
+      experienceLevel: user.experienceLevel,
+      fitnessGoal: user.fitnessGoal,
+      height: user.height,
+      weight: user.weight,
+      workoutHistory: user.workoutHistory,
+      selectedEquipment: user.selectedEquipment,
+      equipmentPhotos: user.equipmentPhotos,
+      bodyPhotos: user.bodyPhotos,
+      gender: user.gender,
+      onboardingProgress: user.onboardingProgress
+    };
   }
 
   async validateUser(userId: string): Promise<UserDocument> {
@@ -315,7 +350,7 @@ export class AuthService {
   }
 
   // Step-by-step onboarding methods
-  async saveProfileInfo(userId: string, profileInfoDto: any): Promise<User> {
+  async saveProfileInfo(userId: string, profileInfoDto: any): Promise<{ message: string; user: any }> {
     const { gender, age, height, weight } = profileInfoDto;
     
     const user = await this.userModel.findByIdAndUpdate(
@@ -339,10 +374,13 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    return user;
+    return {
+      message: 'Profile information saved successfully!',
+      user: this.getSafeUserData(user)
+    };
   }
 
-  async saveFitnessGoal(userId: string, fitnessGoalDto: any): Promise<User> {
+  async saveFitnessGoal(userId: string, fitnessGoalDto: any): Promise<{ message: string; user: any }> {
     const { fitnessGoal } = fitnessGoalDto;
     
     const user = await this.userModel.findByIdAndUpdate(
@@ -363,10 +401,13 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    return user;
+    return {
+      message: 'Fitness goal saved successfully!',
+      user: this.getSafeUserData(user)
+    };
   }
 
-  async saveBodyPhotos(userId: string, bodyPhotosDto: any): Promise<User> {
+  async saveBodyPhotos(userId: string, bodyPhotosDto: any): Promise<{ message: string; user: any }> {
     const { bodyPhotos } = bodyPhotosDto;
     
     const user = await this.userModel.findByIdAndUpdate(
@@ -387,10 +428,13 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    return user;
+    return {
+      message: 'Body photos saved successfully!',
+      user: this.getSafeUserData(user)
+    };
   }
 
-  async saveEquipmentPhotos(userId: string, equipmentPhotosDto: any): Promise<User> {
+  async saveEquipmentPhotos(userId: string, equipmentPhotosDto: any): Promise<{ message: string; user: any }> {
     const { equipmentPhotos, selectedEquipment } = equipmentPhotosDto;
     
     const user = await this.userModel.findByIdAndUpdate(
@@ -413,6 +457,9 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    return user;
+    return {
+      message: 'Equipment photos saved successfully! Onboarding completed!',
+      user: this.getSafeUserData(user)
+    };
   }
 }

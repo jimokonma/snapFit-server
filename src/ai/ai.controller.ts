@@ -58,4 +58,37 @@ export class AiController {
     const user = req.user;
     return this.aiService.generateWorkoutFoundation(user, body.bodyAnalysis);
   }
+
+  @Post('test-body-analysis')
+  @ApiOperation({ summary: 'Test body analysis with a sample image' })
+  @ApiResponse({ status: 200, description: 'Test analysis completed' })
+  async testBodyAnalysis(@Body() body: { imageUrl: string }) {
+    console.log('=== TESTING BODY ANALYSIS ===');
+    console.log('Image URL:', body.imageUrl);
+    
+    try {
+      const result = await this.aiService.analyzeBodyPhoto(body.imageUrl, {
+        age: 25,
+        height: 175,
+        weight: 70,
+        fitnessGoal: 'muscle_gain',
+        experienceLevel: 'beginner',
+        workoutHistory: 'never'
+      });
+      
+      console.log('Test Analysis Result:', result);
+      return {
+        success: true,
+        result: result,
+        message: 'Test analysis completed successfully'
+      };
+    } catch (error) {
+      console.error('Test Analysis Error:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: 'Test analysis failed'
+      };
+    }
+  }
 }

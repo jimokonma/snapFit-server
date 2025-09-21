@@ -136,8 +136,14 @@ CRITICAL: Respond with ONLY the JSON object above. No explanations, no additiona
       
       return JSON.parse(jsonContent);
     } catch (error) {
-      console.error('AI Analysis Error:', error);
+      console.error('=== AI ANALYSIS ERROR ===');
+      console.error('Error Type:', error.constructor.name);
+      console.error('Error Message:', error.message);
+      console.error('Error Stack:', error.stack);
       console.error('Raw AI Response:', response?.choices?.[0]?.message?.content);
+      console.error('Response Status:', response?.status);
+      console.error('Response Headers:', response?.headers);
+      console.error('========================');
       
       // If JSON parsing fails, return a fallback response
       if (error.message.includes('Unexpected token')) {

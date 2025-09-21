@@ -14,8 +14,17 @@ export class AiController {
   @Post('analyze-body')
   @ApiOperation({ summary: 'Analyze body photo for workout planning' })
   @ApiResponse({ status: 200, description: 'Body analysis completed successfully' })
-  async analyzeBodyPhoto(@Body() body: { imageUrl: string }) {
-    return this.aiService.analyzeBodyPhoto(body.imageUrl);
+  async analyzeBodyPhoto(@Body() body: { imageUrl: string }, @Request() req) {
+    // Get user profile for context
+    const user = req.user;
+    return this.aiService.analyzeBodyPhoto(body.imageUrl, {
+      age: user.age,
+      height: user.height,
+      weight: user.weight,
+      fitnessGoal: user.fitnessGoal,
+      experienceLevel: user.experienceLevel,
+      workoutHistory: user.workoutHistory
+    });
   }
 
   @Post('analyze-equipment')
@@ -40,5 +49,13 @@ export class AiController {
   @ApiResponse({ status: 200, description: 'Instruction image generated successfully' })
   async generateInstructionImage(@Body() body: { exerciseName: string; instructionPrompt: string }) {
     return this.aiService.generateInstructionImage(body.exerciseName, body.instructionPrompt);
+  }
+
+  @Post('generate-workout-foundation')
+  @ApiOperation({ summary: 'Generate personalized workout foundation based on body analysis' })
+  @ApiResponse({ status: 200, description: 'Workout foundation generated successfully' })
+  async generateWorkoutFoundation(@Body() body: { bodyAnalysis: any }, @Request() req) {
+    const user = req.user;
+    return this.aiService.generateWorkoutFoundation(user, body.bodyAnalysis);
   }
 }

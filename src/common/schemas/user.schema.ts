@@ -120,6 +120,40 @@ export class User {
 
   @Prop({ default: 0 })
   freeTrialInstructionsUsed: number;
+
+  // AI Body Analysis Data
+  @Prop({ type: Object })
+  bodyAnalysis: {
+    overallAssessment: string;
+    bodyComposition: {
+      estimatedBodyFat: string;
+      muscleDevelopment: string;
+      posture: string;
+      symmetry: string;
+    };
+    strengths: string[];
+    areasForImprovement: string[];
+    recommendations: {
+      primaryFocus: string;
+      secondaryFocus: string;
+      workoutIntensity: string;
+      exerciseTypes: string[];
+    };
+    detailedDescription: string;
+    analyzedAt: Date;
+    analyzedFromPhoto: string; // URL of the photo that was analyzed
+  };
+
+  // AI-Generated Workout Foundation
+  @Prop({ type: Object })
+  workoutFoundation: {
+    personalizedAdvice: string;
+    recommendedWorkoutStyle: string;
+    keyFocusAreas: string[];
+    intensityGuidelines: string;
+    progressionStrategy: string;
+    generatedAt: Date;
+  };
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

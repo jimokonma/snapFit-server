@@ -8,6 +8,7 @@ import { User, UserDocument } from '../common/schemas/user.schema';
 import { RegisterDto, LoginDto, OnboardingDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ResendVerificationDto, GoogleAuthDto } from '../common/dto/auth.dto';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../common/services/email.service';
+import { AiService } from '../ai/ai.service';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +17,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private emailService: EmailService,
+    private aiService: AiService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<{ user: User; tokens: any; message: string }> {
@@ -407,7 +409,7 @@ export class AuthService {
     };
   }
 
-  async saveBodyPhotos(userId: string, bodyPhotosDto: any): Promise<{ message: string; user: any }> {
+  async saveBodyPhotos(userId: string, bodyPhotosDto: any): Promise<{ message: string; user: any; bodyAnalysis?: any }> {
     const { bodyPhotos } = bodyPhotosDto;
     
     const user = await this.userModel.findByIdAndUpdate(
@@ -428,9 +430,50 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
+    // Perform AI body analysis if we have a primary body photo
+    let bodyAnalysis = null;
+    if (bodyPhotos && (bodyPhotos.front || bodyPhotos.fullBody)) {
+      try {
+        const primaryPhoto = bodyPhotos.front || bodyPhotos.fullBody;
+        bodyAnalysis = await this.aiService.analyzeBodyPhoto(primaryPhoto, {
+          age: user.age,
+          height: user.height,
+          weight: user.weight,
+          fitnessGoal: user.fitnessGoal,
+          experienceLevel: user.experienceLevel,
+          workoutHistory: user.workoutHistory
+        });
+
+        // Save body analysis to user
+        await this.userModel.findByIdAndUpdate(userId, {
+          bodyAnalysis: {
+            ...bodyAnalysis,
+            analyzedAt: new Date(),
+            analyzedFromPhoto: primaryPhoto
+          }
+        });
+
+        // Generate workout foundation based on body analysis
+        const workoutFoundation = await this.aiService.generateWorkoutFoundation(user, bodyAnalysis);
+        
+        // Save workout foundation to user
+        await this.userModel.findByIdAndUpdate(userId, {
+          workoutFoundation: {
+            ...workoutFoundation,
+            generatedAt: new Date()
+          }
+        });
+
+      } catch (error) {
+        console.error('Failed to analyze body photos:', error);
+        // Continue without analysis - don't fail the onboarding
+      }
+    }
+
     return {
-      message: 'Body photos saved successfully!',
-      user: this.getSafeUserData(user)
+      message: 'Body photos saved successfully!' + (bodyAnalysis ? ' AI analysis completed!' : ''),
+      user: this.getSafeUserData(user),
+      bodyAnalysis: bodyAnalysis
     };
   }
 

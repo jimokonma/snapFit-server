@@ -124,4 +124,20 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
   }
+
+  async getBodyAnalysis(userId: string): Promise<any> {
+    const user = await this.findById(userId);
+    if (!user.bodyAnalysis) {
+      throw new NotFoundException('Body analysis not found. Please complete body photo upload first.');
+    }
+    return user.bodyAnalysis;
+  }
+
+  async getWorkoutFoundation(userId: string): Promise<any> {
+    const user = await this.findById(userId);
+    if (!user.workoutFoundation) {
+      throw new NotFoundException('Workout foundation not found. Please complete body photo analysis first.');
+    }
+    return user.workoutFoundation;
+  }
 }

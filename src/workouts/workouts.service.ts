@@ -21,21 +21,40 @@ export class WorkoutsService {
       throw new ForbiddenException('Please upload body and equipment photos first');
     }
 
-    // Analyze body photos (use front photo as primary)
-    const primaryBodyPhoto = user.bodyPhotos.front || Object.values(user.bodyPhotos)[0];
-    const bodyAnalysis = await this.aiService.analyzeBodyPhoto(primaryBodyPhoto);
+    // Use stored body analysis if available, otherwise analyze photos
+    let bodyAnalysis = user.bodyAnalysis;
+    if (!bodyAnalysis) {
+      // Fallback: analyze body photos if no stored analysis
+      const primaryBodyPhoto = user.bodyPhotos.front || Object.values(user.bodyPhotos)[0];
+      const analysisResult = await this.aiService.analyzeBodyPhoto(primaryBodyPhoto, {
+        age: user.age,
+        height: user.height,
+        weight: user.weight,
+        fitnessGoal: user.fitnessGoal,
+        experienceLevel: user.experienceLevel,
+        workoutHistory: user.workoutHistory
+      });
+      
+      // Convert to the expected format
+      bodyAnalysis = {
+        ...analysisResult,
+        analyzedAt: new Date(),
+        analyzedFromPhoto: primaryBodyPhoto
+      };
+    }
     
     // Analyze equipment photos
     const equipmentList = await this.aiService.analyzeEquipmentPhoto(user.equipmentPhotos[0]);
 
-    // Generate workout plan
+    // Generate workout plan using stored analysis and foundation
     const workoutData = await this.aiService.generateWorkoutPlan(user, bodyAnalysis, equipmentList);
 
     // Create workout document
     const workout = new this.workoutModel({
       ...workoutData,
       userId: new Types.ObjectId(userId),
-      aiAnalysis: bodyAnalysis,
+      aiAnalysis: typeof bodyAnalysis === 'string' ? bodyAnalysis : bodyAnalysis.detailedDescription,
+      bodyAnalysisData: bodyAnalysis, // Store full analysis data
     });
 
     return await workout.save();

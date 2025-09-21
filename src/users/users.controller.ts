@@ -105,4 +105,18 @@ export class UsersController {
     await this.usersService.deleteUser(userId);
     return { message: 'User deleted successfully' };
   }
+
+  @Get('body-analysis')
+  @ApiOperation({ summary: 'Get user body analysis' })
+  @ApiResponse({ status: 200, description: 'Body analysis retrieved successfully' })
+  async getBodyAnalysis(@Request() req) {
+    return this.usersService.getBodyAnalysis(req.user.sub);
+  }
+
+  @Get('workout-foundation')
+  @ApiOperation({ summary: 'Get user workout foundation' })
+  @ApiResponse({ status: 200, description: 'Workout foundation retrieved successfully' })
+  async getWorkoutFoundation(@Request() req) {
+    return this.usersService.getWorkoutFoundation(req.user.sub);
+  }
 }

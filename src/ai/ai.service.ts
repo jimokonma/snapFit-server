@@ -14,17 +14,71 @@ export class AiService {
     });
   }
 
-  async analyzeBodyPhoto(imageUrl: string): Promise<string> {
+  async analyzeBodyPhoto(imageUrl: string, userProfile?: any): Promise<{
+    overallAssessment: string;
+    bodyComposition: {
+      estimatedBodyFat: string;
+      muscleDevelopment: string;
+      posture: string;
+      symmetry: string;
+    };
+    strengths: string[];
+    areasForImprovement: string[];
+    recommendations: {
+      primaryFocus: string;
+      secondaryFocus: string;
+      workoutIntensity: string;
+      exerciseTypes: string[];
+    };
+    detailedDescription: string;
+  }> {
     try {
+      const userContext = userProfile ? `
+User Profile Context:
+- Age: ${userProfile.age || 'Not specified'}
+- Height: ${userProfile.height || 'Not specified'} cm
+- Weight: ${userProfile.weight || 'Not specified'} kg
+- Fitness Goal: ${userProfile.fitnessGoal || 'Not specified'}
+- Experience Level: ${userProfile.experienceLevel || 'Not specified'}
+- Workout History: ${userProfile.workoutHistory || 'Not specified'}
+` : '';
+
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4-vision-preview',
         messages: [
+          {
+            role: 'system',
+            content: `You are a professional fitness trainer and body composition expert. Analyze body photos to provide detailed physical assessments for personalized workout planning. Be specific, professional, and constructive in your analysis.`,
+          },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Analyze this body photo and provide insights about body type, muscle development, areas that need focus, and overall fitness level. Be specific about what you observe and provide actionable recommendations for workout planning.',
+                text: `${userContext}
+
+Analyze this body photo and provide a comprehensive physical assessment. Return your analysis in the following JSON format:
+
+{
+  "overallAssessment": "Brief overall assessment of the person's current fitness level and body composition",
+  "bodyComposition": {
+    "estimatedBodyFat": "Estimated body fat percentage range (e.g., '15-18%')",
+    "muscleDevelopment": "Assessment of muscle development across major muscle groups",
+    "posture": "Posture analysis and any alignment issues",
+    "symmetry": "Assessment of left-right symmetry and muscle balance"
+  },
+  "strengths": ["List of 3-5 physical strengths or well-developed areas"],
+  "areasForImprovement": ["List of 3-5 areas that need focus or development"],
+  "recommendations": {
+    "primaryFocus": "Main area to focus on for workouts",
+    "secondaryFocus": "Secondary area to focus on",
+    "workoutIntensity": "Recommended workout intensity (beginner/intermediate/advanced)",
+    "exerciseTypes": ["List of recommended exercise types/categories"]
+  },
+  "detailedDescription": "Detailed description of the person's physique, including specific observations about muscle development, body proportions, and physical characteristics that will inform workout planning"
+}
+
+Be specific and detailed in your analysis. Consider the user's profile context if provided.`,
               },
               {
                 type: 'image_url',
@@ -35,10 +89,12 @@ export class AiService {
             ],
           },
         ],
-        max_tokens: 500,
+        max_tokens: 1500,
+        temperature: 0.3,
       });
 
-      return response.choices[0].message.content;
+      const content = response.choices[0].message.content;
+      return JSON.parse(content);
     } catch (error) {
       throw new Error(`Failed to analyze body photo: ${error.message}`);
     }
@@ -75,7 +131,68 @@ export class AiService {
     }
   }
 
-  async generateWorkoutPlan(user: User, bodyAnalysis: string, equipmentList: string[]): Promise<CreateWorkoutDto> {
+  async generateWorkoutFoundation(user: User, bodyAnalysis: any): Promise<{
+    personalizedAdvice: string;
+    recommendedWorkoutStyle: string;
+    keyFocusAreas: string[];
+    intensityGuidelines: string;
+    progressionStrategy: string;
+  }> {
+    try {
+      const prompt = `
+Based on the following user profile and detailed body analysis, generate a comprehensive workout foundation that will be used for all future workout plans.
+
+User Profile:
+- Age: ${user.age || 'Not specified'}
+- Height: ${user.height || 'Not specified'} cm
+- Weight: ${user.weight || 'Not specified'} kg
+- Fitness Goal: ${user.fitnessGoal || 'Not specified'}
+- Experience Level: ${user.experienceLevel || 'Not specified'}
+- Workout History: ${user.workoutHistory || 'Not specified'}
+
+Body Analysis:
+- Overall Assessment: ${bodyAnalysis.overallAssessment}
+- Body Composition: ${JSON.stringify(bodyAnalysis.bodyComposition)}
+- Strengths: ${bodyAnalysis.strengths.join(', ')}
+- Areas for Improvement: ${bodyAnalysis.areasForImprovement.join(', ')}
+- Recommendations: ${JSON.stringify(bodyAnalysis.recommendations)}
+- Detailed Description: ${bodyAnalysis.detailedDescription}
+
+Generate a comprehensive workout foundation in this JSON format:
+{
+  "personalizedAdvice": "Detailed personalized advice based on the body analysis and user goals",
+  "recommendedWorkoutStyle": "Recommended workout style/approach (e.g., 'Strength-focused with cardio', 'Hypertrophy-focused', 'Functional fitness')",
+  "keyFocusAreas": ["List of 3-5 key areas to focus on in workouts"],
+  "intensityGuidelines": "Specific intensity guidelines based on current fitness level and goals",
+  "progressionStrategy": "How to progress workouts over time based on the user's starting point and goals"
+}
+
+This foundation will be used to generate all future workout plans, so make it comprehensive and specific to this user's needs.`;
+
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a professional personal trainer creating a personalized workout foundation based on detailed body analysis. This foundation will guide all future workout plan generation for this specific user.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        max_tokens: 1000,
+        temperature: 0.3,
+      });
+
+      const content = response.choices[0].message.content;
+      return JSON.parse(content);
+    } catch (error) {
+      throw new Error(`Failed to generate workout foundation: ${error.message}`);
+    }
+  }
+
+  async generateWorkoutPlan(user: User, bodyAnalysis: any, equipmentList: string[]): Promise<CreateWorkoutDto> {
     try {
       const prompt = this.buildWorkoutPrompt(user, bodyAnalysis, equipmentList);
       
@@ -146,7 +263,28 @@ export class AiService {
     }
   }
 
-  private buildWorkoutPrompt(user: User, bodyAnalysis: string, equipmentList: string[]): string {
+  private buildWorkoutPrompt(user: User, bodyAnalysis: any, equipmentList: string[]): string {
+    const bodyAnalysisText = typeof bodyAnalysis === 'string' 
+      ? bodyAnalysis 
+      : `
+Body Analysis:
+- Overall Assessment: ${bodyAnalysis.overallAssessment}
+- Body Composition: ${JSON.stringify(bodyAnalysis.bodyComposition)}
+- Strengths: ${bodyAnalysis.strengths?.join(', ') || 'Not specified'}
+- Areas for Improvement: ${bodyAnalysis.areasForImprovement?.join(', ') || 'Not specified'}
+- Recommendations: ${JSON.stringify(bodyAnalysis.recommendations)}
+- Detailed Description: ${bodyAnalysis.detailedDescription}
+`;
+
+    const workoutFoundation = user.workoutFoundation ? `
+Workout Foundation (Use this as the primary guide):
+- Personalized Advice: ${user.workoutFoundation.personalizedAdvice}
+- Recommended Workout Style: ${user.workoutFoundation.recommendedWorkoutStyle}
+- Key Focus Areas: ${user.workoutFoundation.keyFocusAreas?.join(', ') || 'Not specified'}
+- Intensity Guidelines: ${user.workoutFoundation.intensityGuidelines}
+- Progression Strategy: ${user.workoutFoundation.progressionStrategy}
+` : '';
+
     return `
 Create a 7-day workout plan for the following user:
 
@@ -158,8 +296,9 @@ User Profile:
 - Experience Level: ${user.experienceLevel || 'Not specified'}
 - Workout History: ${user.workoutHistory || 'Not specified'}
 
-Body Analysis:
-${bodyAnalysis}
+${bodyAnalysisText}
+
+${workoutFoundation}
 
 Available Equipment:
 ${equipmentList.join(', ') || 'Bodyweight only'}
@@ -169,13 +308,15 @@ Requirements:
 2. Each workout day should have 4-8 exercises
 3. Include sets, reps, and rest times
 4. Consider the user's experience level and available equipment
-5. Focus on the user's fitness goal
-6. Make it progressive and safe
+5. Focus on the user's fitness goal and body analysis recommendations
+6. Follow the workout foundation guidelines if provided
+7. Make it progressive and safe
+8. Prioritize the key focus areas identified in the body analysis
 
 Return the response in this JSON format:
 {
   "title": "Week X - [Goal] Training",
-  "description": "Brief description of the plan",
+  "description": "Brief description of the plan based on body analysis and foundation",
   "weekNumber": 1,
   "days": [
     {
@@ -183,7 +324,7 @@ Return the response in this JSON format:
       "dayName": "Monday",
       "isRestDay": false,
       "estimatedDuration": 45,
-      "notes": "Focus on form",
+      "notes": "Focus on form and key areas identified in analysis",
       "exercises": [
         {
           "name": "Exercise Name",

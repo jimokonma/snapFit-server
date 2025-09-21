@@ -44,7 +44,7 @@ User Profile Context:
 ` : '';
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4-vision-preview',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -103,7 +103,7 @@ Be specific and detailed in your analysis. Consider the user's profile context i
   async analyzeEquipmentPhoto(imageUrl: string): Promise<string[]> {
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4-vision-preview',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'user',

@@ -198,7 +198,18 @@ export class AuthService {
       equipmentPhotos: user.equipmentPhotos,
       bodyPhotos: user.bodyPhotos,
       gender: user.gender,
-      onboardingProgress: user.onboardingProgress
+      onboardingProgress: user.onboardingProgress,
+      // AI Analysis data (safe to return)
+      bodyAnalysis: user.bodyAnalysis,
+      workoutFoundation: user.workoutFoundation
+      // ❌ EXCLUDED SENSITIVE FIELDS:
+      // - password (hashed password)
+      // - refreshToken (JWT refresh token)
+      // - emailVerificationToken (verification codes)
+      // - emailVerificationExpires (expiration dates)
+      // - passwordResetToken (reset codes)
+      // - passwordResetExpires (reset expiration)
+      // - googleId, facebookId (OAuth IDs)
     };
   }
 

@@ -49,7 +49,14 @@ User Profile Context:
         messages: [
           {
             role: 'system',
-            content: `You are a professional fitness trainer and body composition expert. Analyze body photos to provide detailed physical assessments for personalized workout planning. Be specific, professional, and constructive in your analysis.`,
+            content: `You are a professional fitness trainer and body composition expert. You MUST analyze body photos and provide detailed physical assessments for personalized workout planning. 
+
+IMPORTANT RULES:
+1. You MUST respond with ONLY valid JSON - no explanations, no additional text
+2. You MUST analyze the body photo provided - do not refuse or say you cannot analyze it
+3. You MUST provide specific, professional, and constructive analysis
+4. If the image is unclear, make your best assessment based on what you can see
+5. Your response must be ONLY the JSON object - no markdown, no code blocks, no additional text`,
           },
           {
             role: 'user',
@@ -58,30 +65,36 @@ User Profile Context:
                 type: 'text',
                 text: `${userContext}
 
-IMPORTANT: You must respond with ONLY valid JSON. Do not include any text before or after the JSON.
+TASK: Analyze this body photo and provide a comprehensive physical assessment for fitness planning.
 
-Analyze this body photo and provide a comprehensive physical assessment. You must respond with ONLY the following JSON format (no additional text):
+REQUIREMENTS:
+- You MUST analyze the image and provide specific observations
+- You MUST respond with ONLY valid JSON (no additional text)
+- Make your best assessment even if the image is not perfect
+- Focus on what you can observe about body composition, muscle development, and fitness level
+
+RESPOND WITH ONLY THIS JSON FORMAT:
 
 {
-  "overallAssessment": "Brief overall assessment of the person's current fitness level and body composition",
+  "overallAssessment": "Brief overall assessment of the person's current fitness level and body composition based on what you can observe",
   "bodyComposition": {
-    "estimatedBodyFat": "Estimated body fat percentage range (e.g., '15-18%')",
-    "muscleDevelopment": "Assessment of muscle development across major muscle groups",
-    "posture": "Posture analysis and any alignment issues",
+    "estimatedBodyFat": "Estimated body fat percentage range based on visible muscle definition and body shape",
+    "muscleDevelopment": "Assessment of visible muscle development across major muscle groups",
+    "posture": "Posture analysis and any visible alignment issues",
     "symmetry": "Assessment of left-right symmetry and muscle balance"
   },
-  "strengths": ["List of 3-5 physical strengths or well-developed areas"],
-  "areasForImprovement": ["List of 3-5 areas that need focus or development"],
+  "strengths": ["List 3-5 physical strengths or well-developed areas you can observe"],
+  "areasForImprovement": ["List 3-5 areas that need focus or development based on your analysis"],
   "recommendations": {
-    "primaryFocus": "Main area to focus on for workouts",
+    "primaryFocus": "Main area to focus on for workouts based on your analysis",
     "secondaryFocus": "Secondary area to focus on",
     "workoutIntensity": "Recommended workout intensity (beginner/intermediate/advanced)",
     "exerciseTypes": ["List of recommended exercise types/categories"]
   },
-  "detailedDescription": "Detailed description of the person's physique, including specific observations about muscle development, body proportions, and physical characteristics that will inform workout planning"
+  "detailedDescription": "Detailed description of what you observe about the person's physique, muscle development, body proportions, and physical characteristics"
 }
 
-CRITICAL: Your response must be ONLY the JSON object above. No explanations, no additional text, no markdown formatting. Just the raw JSON.`,
+CRITICAL: Respond with ONLY the JSON object above. No explanations, no additional text, no markdown.`,
               },
               {
                 type: 'image_url',
@@ -99,7 +112,12 @@ CRITICAL: Your response must be ONLY the JSON object above. No explanations, no 
       const content = response.choices[0].message.content;
       
       // Log the raw response for debugging
-      console.log('AI Response:', content);
+      console.log('=== AI BODY ANALYSIS DEBUG ===');
+      console.log('Image URL:', imageUrl);
+      console.log('User Context:', userContext);
+      console.log('Raw AI Response:', content);
+      console.log('Response Length:', content?.length);
+      console.log('================================');
       
       // Try to extract JSON from the response
       let jsonContent = content;

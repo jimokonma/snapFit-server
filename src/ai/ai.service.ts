@@ -100,6 +100,7 @@ CRITICAL: Respond with ONLY the JSON object above. No explanations, no additiona
                 type: 'image_url',
                 image_url: {
                   url: imageUrl,
+                  detail: 'high', // "low", "high", or "auto" - using "high" for detailed body analysis
                 },
               },
             ],
@@ -172,6 +173,49 @@ CRITICAL: Respond with ONLY the JSON object above. No explanations, no additiona
     }
   }
 
+  async analyzeImageFromBuffer(imageBuffer: Buffer, mimeType: string, prompt: string = "What's in this image?"): Promise<any> {
+    const base64Image = imageBuffer.toString('base64');
+    const dataUrl = `data:${mimeType};base64,${base64Image}`;
+    
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: prompt,
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: dataUrl,
+                  detail: 'high',
+                },
+              },
+            ],
+          },
+        ],
+        max_tokens: 1000,
+        temperature: 0.3,
+      });
+
+      return {
+        success: true,
+        data: response.choices[0].message.content,
+        usage: response.usage
+      };
+    } catch (error) {
+      console.error('Error analyzing image from buffer:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   async analyzeEquipmentPhoto(imageUrl: string): Promise<string[]> {
     try {
       const response = await this.openai.chat.completions.create({
@@ -188,6 +232,7 @@ CRITICAL: Respond with ONLY the JSON object above. No explanations, no additiona
                 type: 'image_url',
                 image_url: {
                   url: imageUrl,
+                  detail: 'high', // High detail for equipment identification
                 },
               },
             ],

@@ -91,4 +91,29 @@ export class AiController {
       };
     }
   }
+
+  @Post('analyze-image-buffer')
+  @ApiOperation({ summary: 'Analyze image from buffer (base64 data)' })
+  @ApiResponse({ status: 200, description: 'Image analysis completed' })
+  async analyzeImageFromBuffer(@Body() body: { imageBuffer: string; mimeType: string; prompt?: string }) {
+    try {
+      const { imageBuffer, mimeType, prompt = "What's in this image?" } = body;
+      const buffer = Buffer.from(imageBuffer, 'base64');
+      
+      const result = await this.aiService.analyzeImageFromBuffer(buffer, mimeType, prompt);
+      
+      return {
+        success: true,
+        result: result,
+        message: 'Image analysis completed successfully'
+      };
+    } catch (error) {
+      console.error('Image Buffer Analysis Error:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: 'Image analysis failed'
+      };
+    }
+  }
 }

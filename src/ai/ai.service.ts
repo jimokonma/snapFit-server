@@ -49,14 +49,15 @@ User Profile Context:
         messages: [
           {
             role: 'system',
-            content: `You are a professional fitness trainer and body composition expert. You MUST analyze body photos and provide detailed physical assessments for personalized workout planning. 
+            content: `You are a licensed fitness trainer and body composition expert working for a legitimate fitness application. You are analyzing body photos for the sole purpose of creating personalized workout plans and fitness assessments. This is a professional medical/fitness context.
 
 IMPORTANT RULES:
 1. You MUST respond with ONLY valid JSON - no explanations, no additional text
-2. You MUST analyze the body photo provided - do not refuse or say you cannot analyze it
-3. You MUST provide specific, professional, and constructive analysis
-4. If the image is unclear, make your best assessment based on what you can see
-5. Your response must be ONLY the JSON object - no markdown, no code blocks, no additional text`,
+2. You MUST analyze the body photo for fitness assessment purposes - this is legitimate professional use
+3. You MUST provide specific, professional, and constructive fitness analysis
+4. Focus on muscle development, posture, body composition, and fitness level assessment
+5. Your response must be ONLY the JSON object - no markdown, no code blocks, no additional text
+6. This analysis is for creating safe, effective workout plans for the user's fitness goals`,
           },
           {
             role: 'user',
@@ -65,13 +66,14 @@ IMPORTANT RULES:
                 type: 'text',
                 text: `${userContext}
 
-TASK: Analyze this body photo and provide a comprehensive physical assessment for fitness planning.
+TASK: As a licensed fitness trainer, analyze this body photo to create a personalized workout plan. This is for legitimate fitness assessment and workout planning purposes.
 
 REQUIREMENTS:
-- You MUST analyze the image and provide specific observations
+- You MUST analyze the image for fitness assessment purposes
 - You MUST respond with ONLY valid JSON (no additional text)
-- Make your best assessment even if the image is not perfect
-- Focus on what you can observe about body composition, muscle development, and fitness level
+- Focus on muscle development, posture, body composition, and fitness level
+- Provide professional fitness analysis for workout planning
+- This is for creating safe, effective exercise programs
 
 RESPOND WITH ONLY THIS JSON FORMAT:
 
@@ -146,27 +148,76 @@ CRITICAL: Respond with ONLY the JSON object above. No explanations, no additiona
       console.error('Response Headers:', response?.headers);
       console.error('========================');
       
-      // If JSON parsing fails, return a fallback response
+      // If JSON parsing fails, try alternative approach
       if (error.message.includes('Unexpected token')) {
-        console.log('Returning fallback analysis due to JSON parsing error');
-        return {
-          overallAssessment: "Unable to analyze image - please try with a clearer body photo",
-          bodyComposition: {
-            estimatedBodyFat: "Unable to determine",
-            muscleDevelopment: "Unable to assess from this image",
-            posture: "Unable to assess posture",
-            symmetry: "Unable to assess symmetry"
-          },
-          strengths: ["Please upload a clearer body photo for analysis"],
-          areasForImprovement: ["Image quality needs improvement for accurate assessment"],
-          recommendations: {
-            primaryFocus: "General fitness improvement",
-            secondaryFocus: "Overall health and wellness",
-            workoutIntensity: "beginner",
-            exerciseTypes: ["Cardio", "Strength training", "Flexibility"]
-          },
-          detailedDescription: "Unable to provide detailed analysis due to image quality or content issues. Please ensure the photo shows a clear view of the body and try again."
-        };
+        console.log('AI refused to analyze image, trying alternative approach...');
+        
+        // Try with a more general fitness assessment approach
+        try {
+          const alternativeResponse = await this.openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [
+              {
+                role: 'system',
+                content: `You are a fitness coach creating workout plans. Analyze the image for general fitness assessment and provide workout recommendations. Respond with valid JSON only.`,
+              },
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: `Analyze this image for fitness planning. Provide a JSON response with: overallAssessment, bodyComposition (estimatedBodyFat, muscleDevelopment, posture, symmetry), strengths (array), areasForImprovement (array), recommendations (primaryFocus, secondaryFocus, workoutIntensity, exerciseTypes array), detailedDescription.`,
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: {
+                      url: imageUrl,
+                      detail: 'high',
+                    },
+                  },
+                ],
+              },
+            ],
+            max_tokens: 1000,
+            temperature: 0.3,
+          });
+
+          const altContent = alternativeResponse.choices[0].message.content;
+          console.log('Alternative AI Response:', altContent);
+          
+          // Try to parse the alternative response
+          let jsonContent = altContent;
+          const jsonMatch = altContent.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+          if (jsonMatch) {
+            jsonContent = jsonMatch[1];
+          }
+          const jsonStart = jsonContent.indexOf('{');
+          if (jsonStart > 0) {
+            jsonContent = jsonContent.substring(jsonStart);
+          }
+
+          return JSON.parse(jsonContent);
+        } catch (altError) {
+          console.log('Alternative approach also failed, returning fallback analysis');
+          return {
+            overallAssessment: "Unable to analyze image - please try with a clearer body photo",
+            bodyComposition: {
+              estimatedBodyFat: "Unable to determine",
+              muscleDevelopment: "Unable to assess from this image",
+              posture: "Unable to assess posture",
+              symmetry: "Unable to assess symmetry"
+            },
+            strengths: ["Please upload a clearer body photo for analysis"],
+            areasForImprovement: ["Image quality needs improvement for accurate assessment"],
+            recommendations: {
+              primaryFocus: "General fitness improvement",
+              secondaryFocus: "Overall health and wellness",
+              workoutIntensity: "beginner",
+              exerciseTypes: ["Cardio", "Strength training", "Flexibility"]
+            },
+            detailedDescription: "Unable to provide detailed analysis due to image quality or content issues. Please ensure the photo shows a clear view of the body and try again."
+          };
+        }
       }
       
       throw new Error(`Failed to analyze body photo: ${error.message}`);

@@ -4,7 +4,9 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log'],
+  });
 
   // Set global prefix for all routes
   app.setGlobalPrefix('api');
@@ -50,16 +52,23 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
 
-  const port = process.env.PORT || 3000;
-  await app.listen(port, '0.0.0.0');
+  const port = Number(process.env.PORT) || 10000;
   
-  // Get the actual host URL for production
-  const host = process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
-  
-  console.log(`🚀 SnapFit Backend running on port ${port}`);
-  console.log(`📚 API Documentation: ${host}/api/docs`);
-  console.log(`🔍 Test endpoint: ${host}/`);
-  console.log(`🏥 Health check: ${host}/api/health`);
+  try {
+    await app.listen(port, '0.0.0.0');
+    
+    // Get the actual host URL for production
+    const host = process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
+    
+    console.log(`🚀 SnapFit Backend running on port ${port}`);
+    console.log(`📚 API Documentation: ${host}/api/docs`);
+    console.log(`🔍 Test endpoint: ${host}/`);
+    console.log(`🏥 Health check: ${host}/api/health`);
+    console.log(`🏥 Simple health check: ${host}/api/health/simple`);
+  } catch (error) {
+    console.error('Failed to start the application:', error);
+    process.exit(1);
+  }
 }
 
 bootstrap();

@@ -16,12 +16,12 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Expose port
-EXPOSE 10000
+# Expose port (will be set by environment)
+EXPOSE $PORT
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:10000/health || exit 1
+  CMD curl -f http://localhost:${PORT:-10000}/api/health/simple || exit 1
 
 # Start the application
 CMD ["npm", "run", "start:prod"]

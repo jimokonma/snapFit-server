@@ -4,14 +4,12 @@ services:
     env: node
     plan: free
     rootDir: backend
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci && npm run build
     startCommand: npm run start:prod
-    healthCheckPath: /api/health
+    healthCheckPath: /api/health/simple
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 5000
       - key: RENDER_EXTERNAL_URL
         value: https://snapfit-server.onrender.com
       - key: DATABASE_URL

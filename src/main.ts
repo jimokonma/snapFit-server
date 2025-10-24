@@ -22,6 +22,22 @@ async function bootstrap() {
     transform: true,
   }));
 
+  // Add a simple root endpoint for health checks
+  app.getHttpAdapter().get('/', (req, res) => {
+    res.json({
+      message: 'SnapFit API is running!',
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      endpoints: {
+        health: '/api/health',
+        docs: '/api/docs',
+        auth: '/api/auth',
+        users: '/api/users',
+        workouts: '/api/workouts'
+      }
+    });
+  });
+
   // Swagger documentation
   const config = new DocumentBuilder()
     .setTitle('SnapFit API')
@@ -35,10 +51,11 @@ async function bootstrap() {
 
 
   const port = process.env.PORT || 3000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   console.log(`🚀 SnapFit Backend running on port ${port}`);
   console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
   console.log(`🔍 Test endpoint: http://localhost:${port}/`);
+  console.log(`🏥 Health check: http://localhost:${port}/api/health`);
 }
 
 bootstrap();

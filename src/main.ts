@@ -8,8 +8,8 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log'],
   });
 
-  // Set global prefix for all routes
-  app.setGlobalPrefix('api');
+  // Set global prefix for all routes, excluding health endpoints
+  app.setGlobalPrefix('api', { exclude: ['health', 'health/simple'] });
 
   // Enable CORS
   app.enableCors({
@@ -52,7 +52,7 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
 
-  const port = Number(process.env.PORT) || 10000;
+  const port = parseInt(process.env.PORT, 10) || 3000;
   
   try {
     await app.listen(port, '0.0.0.0');
@@ -63,8 +63,8 @@ async function bootstrap() {
     console.log(`🚀 SnapFit Backend running on port ${port}`);
     console.log(`📚 API Documentation: ${host}/api/docs`);
     console.log(`🔍 Test endpoint: ${host}/`);
-    console.log(`🏥 Health check: ${host}/api/health`);
-    console.log(`🏥 Simple health check: ${host}/api/health/simple`);
+    console.log(`🏥 Health check: ${host}/health`);
+    console.log(`🏥 API Health check: ${host}/api/health`);
   } catch (error) {
     console.error('Failed to start the application:', error);
     process.exit(1);

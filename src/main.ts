@@ -52,10 +52,14 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
+  
+  // Get the actual host URL for production
+  const host = process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
+  
   console.log(`🚀 SnapFit Backend running on port ${port}`);
-  console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
-  console.log(`🔍 Test endpoint: http://localhost:${port}/`);
-  console.log(`🏥 Health check: http://localhost:${port}/api/health`);
+  console.log(`📚 API Documentation: ${host}/api/docs`);
+  console.log(`🔍 Test endpoint: ${host}/`);
+  console.log(`🏥 Health check: ${host}/api/health`);
 }
 
 bootstrap();

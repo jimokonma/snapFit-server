@@ -2,6 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 export type WorkoutDocument = Workout & Document;
+export type ExerciseDocument = Exercise & Document;
+export type WorkoutDayDocument = WorkoutDay & Document;
 
 export enum SubscriptionPlan {
   WEEKLY = 'weekly',
@@ -11,6 +13,8 @@ export enum SubscriptionPlan {
 
 @Schema({ timestamps: true })
 export class Exercise {
+  _id?: Types.ObjectId;
+
   @Prop({ required: true })
   name: string;
 
@@ -41,6 +45,8 @@ export class Exercise {
 
 @Schema({ timestamps: true })
 export class WorkoutDay {
+  _id?: Types.ObjectId;
+
   @Prop({ required: true })
   dayNumber: number;
 

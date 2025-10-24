@@ -1,5 +1,6 @@
-import { Controller, Get, Put, Body, UseGuards, Request, Param, Delete } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Put, Body, UseGuards, Request, Param, Delete, Post, UseInterceptors, UploadedFiles } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../common/schemas/user.schema';
@@ -25,8 +26,20 @@ export class UsersController {
     return this.usersService.updateProfile(req.user.sub, updateData);
   }
 
+  @Post('body-photos')
+  @UseInterceptors(FilesInterceptor('photos', 4))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload body photos (max 4: front, back, left, fullBody)' })
+  @ApiResponse({ status: 200, description: 'Body photos uploaded successfully' })
+  async uploadBodyPhotos(
+    @Request() req,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    return this.usersService.uploadBodyPhotos(req.user.sub, files);
+  }
+
   @Put('body-photo')
-  @ApiOperation({ summary: 'Upload body photo' })
+  @ApiOperation({ summary: 'Upload single body photo (legacy)' })
   @ApiResponse({ status: 200, description: 'Body photo uploaded successfully' })
   async uploadBodyPhoto(@Request() req, @Body() body: { photoUrl: string; photoType: 'front' | 'back' | 'left' | 'fullBody' }) {
     return this.usersService.uploadBodyPhoto(req.user.sub, body.photoUrl, body.photoType);

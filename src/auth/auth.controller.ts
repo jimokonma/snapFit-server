@@ -1,8 +1,9 @@
-import { Controller, Post, Body, UseGuards, Get, Request, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Post, Body, UseGuards, Get, Request, HttpCode, HttpStatus, UseInterceptors, UploadedFiles } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { RegisterDto, LoginDto, RefreshTokenDto, OnboardingDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ResendVerificationDto, GoogleAuthDto, ProfileInfoDto, FitnessGoalDto, BodyPhotosDto, EquipmentPhotosDto } from '../common/dto/auth.dto';
+import { RegisterDto, LoginDto, RefreshTokenDto, OnboardingDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ResendVerificationDto, GoogleAuthDto, ProfileInfoDto, FitnessGoalDto, BodyPhotosDto, EquipmentSelectionDto } from '../common/dto/auth.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -66,19 +67,24 @@ export class AuthController {
   @Post('onboarding/body-photos')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Save body photos (Step 3)' })
-  @ApiResponse({ status: 200, description: 'Body photos saved successfully' })
-  async saveBodyPhotos(@Request() req, @Body() bodyPhotosDto: BodyPhotosDto) {
-    return this.authService.saveBodyPhotos(req.user.sub, bodyPhotosDto);
+  @UseInterceptors(FilesInterceptor('photos', 4))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload body photos (Step 3) - max 4: front, back, left, fullBody' })
+  @ApiResponse({ status: 200, description: 'Body photos uploaded successfully' })
+  async saveBodyPhotos(
+    @Request() req,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    return this.authService.saveBodyPhotos(req.user.sub, files);
   }
 
-  @Post('onboarding/equipment-photos')
+  @Post('onboarding/equipment-selection')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Save equipment photos (Step 4)' })
-  @ApiResponse({ status: 200, description: 'Equipment photos saved successfully' })
-  async saveEquipmentPhotos(@Request() req, @Body() equipmentPhotosDto: EquipmentPhotosDto) {
-    return this.authService.saveEquipmentPhotos(req.user.sub, equipmentPhotosDto);
+  @ApiOperation({ summary: 'Save equipment selection (Step 4)' })
+  @ApiResponse({ status: 200, description: 'Equipment selection saved successfully' })
+  async saveEquipmentSelection(@Request() req, @Body() equipmentSelectionDto: EquipmentSelectionDto) {
+    return this.authService.saveEquipmentSelection(req.user.sub, equipmentSelectionDto);
   }
 
   @Post('logout')

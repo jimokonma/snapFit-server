@@ -1,11 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../common/schemas/user.schema';
+import { MediaService } from '../media/media.service';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    private mediaService: MediaService,
+  ) {}
 
   async findById(id: string): Promise<User> {
     const user = await this.userModel.findById(id);
@@ -29,6 +33,41 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
     return user;
+  }
+
+  async uploadBodyPhotos(userId: string, files: Express.Multer.File[]): Promise<User> {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files provided');
+    }
+
+    if (files.length > 4) {
+      throw new BadRequestException('Maximum 4 body photos allowed');
+    }
+
+    const user = await this.findById(userId);
+    const bodyPhotos = user.bodyPhotos || {};
+
+    // Upload files to Cloudinary and map them to body photo types
+    const uploadPromises = files.map(async (file, index) => {
+      const photoType = this.getPhotoTypeFromIndex(index);
+      const folder = `snapfit/users/${userId}/body-photos`;
+      const url = await this.mediaService.uploadImage(file, folder);
+      return { photoType, url };
+    });
+
+    const uploadResults = await Promise.all(uploadPromises);
+
+    // Update bodyPhotos object with new URLs
+    uploadResults.forEach(({ photoType, url }) => {
+      bodyPhotos[photoType] = url;
+    });
+
+    return this.updateProfile(userId, { bodyPhotos });
+  }
+
+  private getPhotoTypeFromIndex(index: number): 'front' | 'back' | 'left' | 'fullBody' {
+    const types: ('front' | 'back' | 'left' | 'fullBody')[] = ['front', 'back', 'left', 'fullBody'];
+    return types[index];
   }
 
   async uploadBodyPhoto(userId: string, photoUrl: string, photoType: 'front' | 'back' | 'left' | 'fullBody'): Promise<User> {

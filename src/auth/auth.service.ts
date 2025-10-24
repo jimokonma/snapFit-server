@@ -8,6 +8,7 @@ import { User, UserDocument } from '../common/schemas/user.schema';
 import { RegisterDto, LoginDto, OnboardingDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ResendVerificationDto, GoogleAuthDto } from '../common/dto/auth.dto';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../common/services/email.service';
+import { MediaService } from '../media/media.service';
 import { AiService } from '../ai/ai.service';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class AuthService {
     private configService: ConfigService,
     private emailService: EmailService,
     private aiService: AiService,
+    private mediaService: MediaService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<{ user: User; tokens: any; message: string }> {
@@ -229,15 +231,16 @@ export class AuthService {
   }
 
   async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<{ message: string }> {
-    const { token } = verifyEmailDto;
+    const { email, otp } = verifyEmailDto;
 
     const user = await this.userModel.findOne({
-      emailVerificationToken: token,
+      email: email,
+      emailVerificationToken: otp,
       emailVerificationExpires: { $gt: new Date() },
     });
 
     if (!user) {
-      throw new BadRequestException('Invalid or expired verification token');
+      throw new BadRequestException('Invalid or expired verification code');
     }
 
     user.isEmailVerified = true;
@@ -364,7 +367,7 @@ export class AuthService {
 
   // Step-by-step onboarding methods
   async saveProfileInfo(userId: string, profileInfoDto: any): Promise<{ message: string; user: any }> {
-    const { gender, age, height, weight } = profileInfoDto;
+    const { gender, age, height, weight, experienceLevel, workoutHistory } = profileInfoDto;
     
     const user = await this.userModel.findByIdAndUpdate(
       userId,
@@ -373,6 +376,8 @@ export class AuthService {
         age: parseInt(age),
         height: parseInt(height),
         weight: parseInt(weight),
+        experienceLevel,
+        workoutHistory,
         onboardingProgress: {
           profileInfoCompleted: true,
           bodyPhotosCompleted: false,
@@ -420,8 +425,30 @@ export class AuthService {
     };
   }
 
-  async saveBodyPhotos(userId: string, bodyPhotosDto: any): Promise<{ message: string; user: any; bodyAnalysis?: any }> {
-    const { bodyPhotos } = bodyPhotosDto;
+  async saveBodyPhotos(userId: string, files: Express.Multer.File[]): Promise<{ message: string; user: any; bodyAnalysis?: any }> {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files provided');
+    }
+
+    if (files.length > 4) {
+      throw new BadRequestException('Maximum 4 body photos allowed');
+    }
+
+    // Upload files to Cloudinary and map them to body photo types
+    const uploadPromises = files.map(async (file, index) => {
+      const photoType = this.getPhotoTypeFromIndex(index);
+      const folder = `snapfit/users/${userId}/body-photos`;
+      const url = await this.mediaService.uploadImage(file, folder);
+      return { photoType, url };
+    });
+
+    const uploadResults = await Promise.all(uploadPromises);
+
+    // Create bodyPhotos object
+    const bodyPhotos: { front?: string; back?: string; left?: string; fullBody?: string } = {};
+    uploadResults.forEach(({ photoType, url }) => {
+      bodyPhotos[photoType] = url;
+    });
     
     const user = await this.userModel.findByIdAndUpdate(
       userId,
@@ -441,39 +468,69 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    // Perform AI body analysis if we have a primary body photo
+    // Perform AI body analysis using all available body photos
     let bodyAnalysis = null;
-    if (bodyPhotos && (bodyPhotos.front || bodyPhotos.fullBody)) {
+    if (bodyPhotos && (bodyPhotos.front || bodyPhotos.back || bodyPhotos.left || bodyPhotos.fullBody)) {
       try {
-        const primaryPhoto = bodyPhotos.front || bodyPhotos.fullBody;
-        bodyAnalysis = await this.aiService.analyzeBodyPhoto(primaryPhoto, {
-          age: user.age,
-          height: user.height,
-          weight: user.weight,
-          fitnessGoal: user.fitnessGoal,
-          experienceLevel: user.experienceLevel,
-          workoutHistory: user.workoutHistory
-        });
+        // Analyze all available photos and combine the analysis
+        const photoUrls = [
+          bodyPhotos.front,
+          bodyPhotos.back, 
+          bodyPhotos.left,
+          bodyPhotos.fullBody
+        ].filter(url => url); // Remove undefined URLs
 
-        // Save body analysis to user
-        await this.userModel.findByIdAndUpdate(userId, {
-          bodyAnalysis: {
-            ...bodyAnalysis,
-            analyzedAt: new Date(),
-            analyzedFromPhoto: primaryPhoto
-          }
-        });
+        if (photoUrls.length > 0) {
+          console.log('=== RE-ANALYZING BODY PHOTOS ===');
+          console.log('Photo URLs:', photoUrls);
+          console.log('User Profile:', {
+            age: user.age,
+            height: user.height,
+            weight: user.weight,
+            fitnessGoal: user.fitnessGoal,
+            experienceLevel: user.experienceLevel,
+            workoutHistory: user.workoutHistory
+          });
+          
+          // Analyze all available photos for comprehensive analysis
+          bodyAnalysis = await this.aiService.analyzeMultipleBodyPhotos(photoUrls, {
+            age: user.age,
+            height: user.height,
+            weight: user.weight,
+            fitnessGoal: user.fitnessGoal,
+            experienceLevel: user.experienceLevel,
+            workoutHistory: user.workoutHistory
+          });
 
-        // Generate workout foundation based on body analysis
-        const workoutFoundation = await this.aiService.generateWorkoutFoundation(user, bodyAnalysis);
-        
-        // Save workout foundation to user
-        await this.userModel.findByIdAndUpdate(userId, {
-          workoutFoundation: {
-            ...workoutFoundation,
-            generatedAt: new Date()
-          }
-        });
+          console.log('=== NEW BODY ANALYSIS RESULT ===');
+          console.log('Analysis:', bodyAnalysis);
+
+          // Update user with new body analysis (overwrite existing)
+          const updatedUser = await this.userModel.findByIdAndUpdate(userId, {
+            bodyAnalysis: {
+              ...bodyAnalysis,
+              analyzedAt: new Date(),
+              analyzedFromPhotos: photoUrls,
+              totalPhotosAnalyzed: photoUrls.length
+            }
+          }, { new: true });
+
+          // Generate new workout foundation based on the updated body analysis
+          const workoutFoundation = await this.aiService.generateWorkoutFoundation(updatedUser, bodyAnalysis);
+          
+          console.log('=== NEW WORKOUT FOUNDATION ===');
+          console.log('Foundation:', workoutFoundation);
+          
+          // Update workout foundation (overwrite existing)
+          await this.userModel.findByIdAndUpdate(userId, {
+            workoutFoundation: {
+              ...workoutFoundation,
+              generatedAt: new Date()
+            }
+          });
+
+          console.log('=== ANALYSIS COMPLETE ===');
+        }
 
       } catch (error) {
         console.error('Failed to analyze body photos:', error);
@@ -481,20 +538,27 @@ export class AuthService {
       }
     }
 
+    // Get the final updated user data
+    const finalUser = await this.userModel.findById(userId);
+
     return {
-      message: 'Body photos saved successfully!' + (bodyAnalysis ? ' AI analysis completed!' : ''),
-      user: this.getSafeUserData(user),
+      message: 'Body photos uploaded and saved successfully!' + (bodyAnalysis ? ' AI analysis completed!' : ''),
+      user: this.getSafeUserData(finalUser),
       bodyAnalysis: bodyAnalysis
     };
   }
 
-  async saveEquipmentPhotos(userId: string, equipmentPhotosDto: any): Promise<{ message: string; user: any }> {
-    const { equipmentPhotos, selectedEquipment } = equipmentPhotosDto;
+  private getPhotoTypeFromIndex(index: number): 'front' | 'back' | 'left' | 'fullBody' {
+    const types: ('front' | 'back' | 'left' | 'fullBody')[] = ['front', 'back', 'left', 'fullBody'];
+    return types[index];
+  }
+
+  async saveEquipmentSelection(userId: string, equipmentSelectionDto: any): Promise<{ message: string; user: any }> {
+    const { selectedEquipment } = equipmentSelectionDto;
     
     const user = await this.userModel.findByIdAndUpdate(
       userId,
       {
-        equipmentPhotos,
         selectedEquipment,
         onboardingCompleted: true,
         onboardingProgress: {
@@ -512,7 +576,7 @@ export class AuthService {
     }
 
     return {
-      message: 'Equipment photos saved successfully! Onboarding completed!',
+      message: 'Equipment selection saved successfully! Onboarding completed!',
       user: this.getSafeUserData(user)
     };
   }

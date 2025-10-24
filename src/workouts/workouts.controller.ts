@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, UseGuards, Request, Param, Put } from '@ne
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { WorkoutsService } from './workouts.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { GenerateInstructionsDto } from '../common/dto/workout.dto';
+import { GenerateInstructionsDto, GenerateWorkoutMediaDto, GenerateExerciseMediaDto } from '../common/dto/workout.dto';
 
 @ApiTags('Workouts')
 @Controller('workouts')
@@ -55,6 +55,37 @@ export class WorkoutsController {
       workoutId,
       generateInstructionsDto.exerciseName,
       generateInstructionsDto.type,
+      req.user.sub,
+    );
+  }
+
+  @Post(':id/generate-media')
+  @ApiOperation({ summary: 'Generate media for all exercises in workout' })
+  @ApiResponse({ status: 200, description: 'Media generated for all exercises successfully' })
+  async generateWorkoutMedia(
+    @Request() req,
+    @Param('id') workoutId: string,
+    @Body() generateWorkoutMediaDto: GenerateWorkoutMediaDto,
+  ) {
+    return this.workoutsService.generateWorkoutMedia(
+      workoutId,
+      generateWorkoutMediaDto.type,
+      generateWorkoutMediaDto.forceRegenerate || false,
+      req.user.sub,
+    );
+  }
+
+  @Post('exercise/:exerciseId/media')
+  @ApiOperation({ summary: 'Generate media for specific exercise by exercise ID' })
+  @ApiResponse({ status: 200, description: 'Exercise media generated successfully' })
+  async generateExerciseMedia(
+    @Request() req,
+    @Param('exerciseId') exerciseId: string,
+    @Body() generateExerciseMediaDto: GenerateExerciseMediaDto,
+  ) {
+    return this.workoutsService.generateExerciseMedia(
+      exerciseId,
+      generateExerciseMediaDto.type,
       req.user.sub,
     );
   }

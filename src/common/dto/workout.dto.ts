@@ -96,3 +96,23 @@ export class GenerateInstructionsDto {
   @IsString()
   type: 'image' | 'video';
 }
+
+export class GenerateWorkoutMediaDto {
+  @ApiProperty({ example: 'image', enum: ['image', 'video'] })
+  @IsString()
+  type: 'image' | 'video';
+
+  @ApiProperty({ example: false, required: false })
+  @IsOptional()
+  forceRegenerate?: boolean;
+}
+
+export class GenerateExerciseMediaDto {
+  @ApiProperty({ example: '68faebe9fdf0c6ed6ab5446f' })
+  @IsString()
+  exerciseId: string;
+
+  @ApiProperty({ example: 'image', enum: ['image', 'video'] })
+  @IsString()
+  type: 'image' | 'video';
+}

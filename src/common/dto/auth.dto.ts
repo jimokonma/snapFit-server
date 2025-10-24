@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsOptional } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsOptional, IsArray } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterDto {
@@ -83,6 +83,14 @@ export class ProfileInfoDto {
   @ApiProperty({ example: 70 })
   @IsString()
   weight: string;
+
+  @ApiProperty({ example: 'beginner', enum: ['beginner', 'intermediate', 'advanced'] })
+  @IsString()
+  experienceLevel: 'beginner' | 'intermediate' | 'advanced';
+
+  @ApiProperty({ example: 'never', enum: ['never', 'occasionally', 'regularly', '1-3_years', '3+_years'] })
+  @IsString()
+  workoutHistory: 'never' | 'occasionally' | 'regularly' | '1-3_years' | '3+_years';
 }
 
 export class FitnessGoalDto {
@@ -102,20 +110,24 @@ export class BodyPhotosDto {
   };
 }
 
-export class EquipmentPhotosDto {
-  @ApiProperty({ example: ['url1', 'url2', 'url3'] })
-  @IsOptional()
-  equipmentPhotos?: string[];
-
-  @ApiProperty({ example: ['dumbbells', 'resistance_bands'] })
-  @IsOptional()
-  selectedEquipment?: string[];
+export class EquipmentSelectionDto {
+  @ApiProperty({ 
+    example: ['dumbbells', 'resistance_bands', 'yoga_mat'],
+    description: 'List of selected equipment names'
+  })
+  @IsArray()
+  @IsString({ each: true })
+  selectedEquipment: string[];
 }
 
 export class VerifyEmailDto {
-  @ApiProperty({ example: 'verification-token-here' })
+  @ApiProperty({ example: 'john@example.com' })
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({ example: '123456' })
   @IsString()
-  token: string;
+  otp: string;
 }
 
 export class ForgotPasswordDto {

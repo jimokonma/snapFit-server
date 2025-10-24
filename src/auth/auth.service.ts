@@ -66,7 +66,7 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto): Promise<{ user: User; tokens: any }> {
+  async login(loginDto: LoginDto): Promise<{ user: any; tokens: any }> {
     const { email, password } = loginDto;
 
     // Find user
@@ -95,10 +95,13 @@ export class AuthService {
     // Generate tokens
     const tokens = await this.generateTokens(user);
 
-    return { user, tokens };
+    // Return only essential user information
+    const sanitizedUser = this.getSafeUserData(user);
+
+    return { user: sanitizedUser, tokens };
   }
 
-  async socialLogin(profile: any, provider: string): Promise<{ user: User; tokens: any }> {
+  async socialLogin(profile: any, provider: string): Promise<{ user: any; tokens: any }> {
     const { id, emails, name } = profile;
     const email = emails[0].value;
 
@@ -123,7 +126,8 @@ export class AuthService {
     }
 
     const tokens = await this.generateTokens(user);
-    return { user, tokens };
+    const sanitizedUser = this.getSafeUserData(user);
+    return { user: sanitizedUser, tokens };
   }
 
   async completeOnboarding(userId: string, onboardingDto: OnboardingDto): Promise<{ message: string; user: any }> {
@@ -184,29 +188,24 @@ export class AuthService {
       isEmailVerified: user.isEmailVerified,
       onboardingCompleted: user.onboardingCompleted,
       isActive: user.isActive,
-      freeTrialStartDate: user.freeTrialStartDate,
-      hasUsedFreeTrial: user.hasUsedFreeTrial,
-      freeTrialInstructionsUsed: user.freeTrialInstructionsUsed,
-      createdAt: (user as any).createdAt,
-      updatedAt: (user as any).updatedAt,
-      // Onboarding data
-      age: user.age,
-      experienceLevel: user.experienceLevel,
       fitnessGoal: user.fitnessGoal,
-      height: user.height,
-      weight: user.weight,
-      workoutHistory: user.workoutHistory,
-      selectedEquipment: user.selectedEquipment,
-      equipmentPhotos: user.equipmentPhotos,
-      bodyPhotos: user.bodyPhotos,
-      gender: user.gender,
+      experienceLevel: user.experienceLevel,
       onboardingProgress: user.onboardingProgress,
-      // AI Analysis data (safe to return)
-      bodyAnalysis: user.bodyAnalysis,
-      workoutFoundation: user.workoutFoundation
-      // ❌ EXCLUDED SENSITIVE FIELDS:
-      // - password (hashed password)
-      // - refreshToken (JWT refresh token)
+      createdAt: (user as any).createdAt
+      // ❌ EXCLUDED SENSITIVE/UNNECESSARY FIELDS:
+      // - password (security risk)
+      // - refreshToken (should be in tokens object)
+      // - freeTrialStartDate (internal tracking)
+      // - hasUsedFreeTrial (internal tracking)
+      // - freeTrialInstructionsUsed (internal tracking)
+      // - age, height, weight (personal data - can be added if needed)
+      // - workoutHistory (personal data - can be added if needed)
+      // - selectedEquipment (can be added if needed)
+      // - equipmentPhotos (sensitive/private)
+      // - bodyPhotos (sensitive/private)
+      // - gender (personal data - can be added if needed)
+      // - bodyAnalysis (detailed analysis - can be added if needed)
+      // - workoutFoundation (detailed data - can be added if needed)
       // - emailVerificationToken (verification codes)
       // - emailVerificationExpires (expiration dates)
       // - passwordResetToken (reset codes)

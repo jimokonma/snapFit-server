@@ -105,6 +105,7 @@ export class UsersService {
       onboardingCompleted: true,
       onboardingProgress: {
         profileInfoCompleted: true,
+        fitnessGoalCompleted: true,
         bodyPhotosCompleted: true,
         equipmentPhotosCompleted: true,
         currentStep: 4,

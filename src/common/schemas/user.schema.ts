@@ -95,6 +95,7 @@ export class User {
   @Prop({ type: Object })
   onboardingProgress: {
     profileInfoCompleted: boolean;
+    fitnessGoalCompleted: boolean;
     bodyPhotosCompleted: boolean;
     equipmentPhotosCompleted: boolean;
     currentStep: number;

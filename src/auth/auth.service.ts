@@ -9,6 +9,7 @@ import { RegisterDto, LoginDto, OnboardingDto, VerifyEmailDto, ForgotPasswordDto
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../common/services/email.service';
 import { MediaService } from '../media/media.service';
+import { AuditLoggerService, AuditEventType } from '../common/services/audit-logger.service';
 import { AiService } from '../ai/ai.service';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class AuthService {
     private emailService: EmailService,
     private aiService: AiService,
     private mediaService: MediaService,
+    private auditLogger: AuditLoggerService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<{ user: User; tokens: any; message: string }> {
@@ -94,6 +96,13 @@ export class AuthService {
 
     // Generate tokens
     const tokens = await this.generateTokens(user);
+
+    // Log successful login
+    await this.auditLogger.logEvent(
+      AuditEventType.LOGIN,
+      user._id.toString(),
+      { email: user.email },
+    );
 
     // Return only essential user information
     const sanitizedUser = this.getSafeUserData(user);
@@ -379,6 +388,7 @@ export class AuthService {
         workoutHistory,
         onboardingProgress: {
           profileInfoCompleted: true,
+          fitnessGoalCompleted: false,
           bodyPhotosCompleted: false,
           equipmentPhotosCompleted: false,
           currentStep: 1,
@@ -406,6 +416,7 @@ export class AuthService {
         fitnessGoal,
         onboardingProgress: {
           profileInfoCompleted: true,
+          fitnessGoalCompleted: true,
           bodyPhotosCompleted: false,
           equipmentPhotosCompleted: false,
           currentStep: 2,
@@ -455,6 +466,7 @@ export class AuthService {
         bodyPhotos,
         onboardingProgress: {
           profileInfoCompleted: true,
+          fitnessGoalCompleted: true,
           bodyPhotosCompleted: true,
           equipmentPhotosCompleted: false,
           currentStep: 3,
@@ -562,6 +574,7 @@ export class AuthService {
         onboardingCompleted: true,
         onboardingProgress: {
           profileInfoCompleted: true,
+          fitnessGoalCompleted: true,
           bodyPhotosCompleted: true,
           equipmentPhotosCompleted: true,
           currentStep: 4,

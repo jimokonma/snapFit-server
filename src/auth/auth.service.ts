@@ -55,11 +55,13 @@ export class AuthService {
 
     const savedUser = await user.save();
 
-    // Send verification email
-    await this.emailService.sendVerificationEmail(email, emailVerificationToken);
-
     // Generate tokens (but user needs to verify email to use them)
     const tokens = await this.generateTokens(savedUser);
+
+    // Send verification email asynchronously (don't block response)
+    this.emailService.sendVerificationEmail(email, emailVerificationToken).catch(err => {
+      console.error('Background email send failed:', err.message);
+    });
 
     return { 
       user: savedUser, 
@@ -253,8 +255,10 @@ export class AuthService {
     user.emailVerificationExpires = undefined;
     await user.save();
 
-    // Send welcome email
-    await this.emailService.sendWelcomeEmail(user.email, user.firstName);
+    // Send welcome email asynchronously (don't block response)
+    this.emailService.sendWelcomeEmail(user.email, user.firstName).catch(err => {
+      console.error('Background email send failed:', err.message);
+    });
 
     return { message: 'Email verified successfully! Welcome to SnapFit!' };
   }
@@ -279,8 +283,10 @@ export class AuthService {
     user.emailVerificationExpires = emailVerificationExpires;
     await user.save();
 
-    // Send verification email
-    await this.emailService.sendVerificationEmail(email, emailVerificationToken);
+    // Send verification email asynchronously (don't block response)
+    this.emailService.sendVerificationEmail(email, emailVerificationToken).catch(err => {
+      console.error('Background email send failed:', err.message);
+    });
 
     return { message: 'Verification email sent successfully!' };
   }
@@ -302,8 +308,10 @@ export class AuthService {
     user.passwordResetExpires = passwordResetExpires;
     await user.save();
 
-    // Send password reset email
-    await this.emailService.sendPasswordResetEmail(email, otp);
+    // Send password reset email asynchronously (don't block response)
+    this.emailService.sendPasswordResetEmail(email, otp).catch(err => {
+      console.error('Background email send failed:', err.message);
+    });
 
     return { message: 'If an account with that email exists, we\'ve sent you a password reset code.' };
   }

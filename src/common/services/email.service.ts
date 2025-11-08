@@ -13,6 +13,9 @@ export class EmailService {
         user: this.configService.get<string>('GMAIL_USER'),
         pass: this.configService.get<string>('GMAIL_APP_PASSWORD'),
       },
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000, // 10 seconds
+      socketTimeout: 10000, // 10 seconds
     });
   }
 
@@ -60,7 +63,17 @@ export class EmailService {
       `,
     };
 
-    await this.transporter.sendMail(mailOptions);
+    try {
+      await Promise.race([
+        this.transporter.sendMail(mailOptions),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Email send timeout')), 15000)
+        )
+      ]);
+    } catch (error) {
+      // Log error but don't throw - email sending should not block registration
+      console.error('Failed to send verification email:', error.message);
+    }
   }
 
   async sendPasswordResetEmail(email: string, otp: string): Promise<void> {
@@ -106,7 +119,17 @@ export class EmailService {
       `,
     };
 
-    await this.transporter.sendMail(mailOptions);
+    try {
+      await Promise.race([
+        this.transporter.sendMail(mailOptions),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Email send timeout')), 15000)
+        )
+      ]);
+    } catch (error) {
+      // Log error but don't throw - email sending should not block password reset
+      console.error('Failed to send password reset email:', error.message);
+    }
   }
 
   async sendWelcomeEmail(email: string, firstName: string): Promise<void> {
@@ -157,6 +180,16 @@ export class EmailService {
       `,
     };
 
-    await this.transporter.sendMail(mailOptions);
+    try {
+      await Promise.race([
+        this.transporter.sendMail(mailOptions),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Email send timeout')), 15000)
+        )
+      ]);
+    } catch (error) {
+      // Log error but don't throw - email sending should not block email verification
+      console.error('Failed to send welcome email:', error.message);
+    }
   }
 }

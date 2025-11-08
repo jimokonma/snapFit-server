@@ -13,10 +13,14 @@ import { EmailService } from '../common/services/email.service';
 import { AiModule } from '../ai/ai.module';
 import { MediaModule } from '../media/media.module';
 import { AuditLoggerService } from '../common/services/audit-logger.service';
+import { AuditLog, AuditLogSchema } from '../common/schemas/audit-log.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: AuditLog.name, schema: AuditLogSchema },
+    ]),
     PassportModule,
     AiModule,
     MediaModule,

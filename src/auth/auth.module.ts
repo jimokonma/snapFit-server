@@ -12,6 +12,7 @@ import { User, UserSchema } from '../common/schemas/user.schema';
 import { EmailService } from '../common/services/email.service';
 import { AiModule } from '../ai/ai.module';
 import { MediaModule } from '../media/media.module';
+import { AuditLoggerService } from '../common/services/audit-logger.service';
 
 @Module({
   imports: [
@@ -30,7 +31,7 @@ import { MediaModule } from '../media/media.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, EmailService, JwtStrategy, GoogleStrategy, FacebookStrategy],
+  providers: [AuthService, EmailService, JwtStrategy, GoogleStrategy, FacebookStrategy, AuditLoggerService],
   exports: [AuthService],
 })
 export class AuthModule {}

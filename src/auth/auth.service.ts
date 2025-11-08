@@ -88,23 +88,15 @@ export class AuthService {
       throw new UnauthorizedException('Please verify your email before logging in');
     }
 
-    // Ensure user is active
+    // Update isActive locally if needed (before generating tokens)
     if (!user.isActive) {
       user.isActive = true;
-      await user.save();
     }
 
-    // Generate tokens
+    // Generate tokens (this will save refreshToken and isActive in a single DB operation)
     const tokens = await this.generateTokens(user);
 
-    // Log successful login
-    // await this.auditLogger.logEvent(
-    //   AuditEventType.LOGIN,
-    //   user._id.toString(),
-    //   { email: user.email },
-    // );
-
-    // Return only essential user information
+    // Return only essential user information (no need to fetch again)
     const sanitizedUser = this.getSafeUserData(user);
 
     return { user: sanitizedUser, tokens };
@@ -182,8 +174,13 @@ export class AuthService {
       expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '30d'),
     });
 
-    // Save refresh token to user
-    await this.userModel.findByIdAndUpdate(user._id, { refreshToken });
+    // Update refresh token and ensure user is active in a single database operation
+    const updateData: any = { refreshToken };
+    if (!user.isActive) {
+      updateData.isActive = true;
+    }
+
+    await this.userModel.findByIdAndUpdate(user._id, updateData, { new: false });
 
     return { accessToken, refreshToken };
   }

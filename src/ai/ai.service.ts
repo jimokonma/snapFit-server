@@ -428,10 +428,7 @@ CRITICAL: Respond with ONLY the JSON object above. No explanations, no additiona
       console.error('=== AI ANALYSIS ERROR ===');
       console.error('Error Type:', error.constructor.name);
       console.error('Error Message:', error.message);
-      console.error('Error Stack:', error.stack);
-      console.error('Raw AI Response:', response?.choices?.[0]?.message?.content);
-      console.error('Response Status:', response?.status);
-      console.error('Response Headers:', response?.headers);
+      // Don't log sensitive data
       console.error('========================');
       
       // If JSON parsing fails, try alternative approach

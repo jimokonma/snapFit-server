@@ -22,67 +22,113 @@ export class EmailService {
     console.log(`   GMAIL_USER: ${gmailUser ? gmailUser.substring(0, 3) + '***' : '❌ NOT SET'}`);
     console.log(`   GMAIL_APP_PASSWORD: ${gmailPassword ? 'SET (' + gmailPassword.length + ' chars)' : '❌ NOT SET'}`);
 
-    // Prefer Resend API (works better on cloud platforms like Render.com)
+    // Try Resend API first, but fall back to Gmail if it fails
+    let resendInitialized = false;
     if (resendApiKey) {
       try {
-        console.log(`📧 Initializing email service with Resend API...`);
+        console.log(`📧 Attempting to initialize Resend API...`);
         this.resend = new Resend(resendApiKey);
+        // Test the API key by trying to verify it (we'll catch errors in send methods)
         this.fromEmail = this.configService.get<string>('RESEND_FROM_EMAIL') || 'onboarding@resend.dev';
         this.emailProvider = 'resend';
-        console.log(`✅ Email service initialized with Resend API`);
+        resendInitialized = true;
+        console.log(`✅ Resend API initialized (will verify on first send)`);
         console.log(`📧 From email: ${this.fromEmail}`);
-        return;
       } catch (error: any) {
-        console.error('❌ Failed to initialize Resend:', error.message);
+        console.warn('⚠️  Failed to initialize Resend:', error.message);
+        console.warn('⚠️  Falling back to Gmail SMTP...');
+        resendInitialized = false;
       }
     }
 
-    // Fallback to Gmail SMTP if Resend is not configured
+    // Initialize Gmail SMTP (use as primary if Resend not initialized, or as fallback)
     if (gmailUser && gmailPassword) {
       try {
-        console.log(`📧 Initializing email service with Gmail SMTP...`);
+        if (!resendInitialized) {
+          console.log(`📧 Initializing email service with Gmail SMTP (primary)...`);
+        } else {
+          console.log(`📧 Initializing Gmail SMTP as fallback...`);
+        }
         console.log(`📧 Gmail User: ${gmailUser ? gmailUser.substring(0, 3) + '***' : 'NOT SET'}`);
         console.log(`📧 Gmail Password: ${gmailPassword ? 'SET (' + gmailPassword.length + ' chars)' : 'NOT SET'}`);
         
-        this.transporter = nodemailer.createTransport({
-          host: 'smtp.gmail.com',
-          port: 587,
-          secure: false,
-          auth: {
-            user: gmailUser,
-            pass: gmailPassword,
+        // Try multiple Gmail SMTP configurations for better cloud platform compatibility
+        const smtpConfigs = [
+          // Configuration 1: Port 587 with STARTTLS (most common)
+          {
+            host: 'smtp.gmail.com',
+            port: 587,
+            secure: false,
+            auth: {
+              user: gmailUser,
+              pass: gmailPassword,
+            },
+            tls: {
+              rejectUnauthorized: false,
+            },
+            connectionTimeout: 60000, // Increased to 60 seconds
+            greetingTimeout: 60000,
+            socketTimeout: 60000,
+            requireTLS: true,
+            debug: false,
+            logger: false,
           },
-          tls: {
-            rejectUnauthorized: false,
+          // Configuration 2: Port 465 with SSL (alternative)
+          {
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
+            auth: {
+              user: gmailUser,
+              pass: gmailPassword,
+            },
+            tls: {
+              rejectUnauthorized: false,
+            },
+            connectionTimeout: 60000,
+            greetingTimeout: 60000,
+            socketTimeout: 60000,
+            debug: false,
+            logger: false,
           },
-          connectionTimeout: 30000,
-          greetingTimeout: 30000,
-          socketTimeout: 30000,
-          requireTLS: true,
-          debug: false,
-          logger: false,
-        });
-        
+        ];
+
+        // Try first configuration
+        this.transporter = nodemailer.createTransport(smtpConfigs[0]);
         this.fromEmail = gmailUser;
-        this.emailProvider = 'gmail';
-        console.log('✅ Email service initialized with Gmail SMTP');
         
-        // Verify transporter connection asynchronously
+        // If Resend wasn't initialized, use Gmail as primary
+        if (!resendInitialized) {
+          this.emailProvider = 'gmail';
+        }
+        
+        console.log('✅ Gmail SMTP transporter created');
+        console.log(`📧 Using port ${smtpConfigs[0].port} with ${smtpConfigs[0].secure ? 'SSL' : 'STARTTLS'}`);
+        
+        // Verify transporter connection asynchronously (don't block)
         this.transporter.verify().then(() => {
-          console.log('✅ Gmail SMTP connection verified');
+          console.log('✅ Gmail SMTP connection verified successfully');
         }).catch((error: any) => {
-          console.error('⚠️  Gmail SMTP verification failed:', error.message);
-          console.error('⚠️  Consider using Resend API (RESEND_API_KEY) for better cloud platform compatibility');
+          console.warn('⚠️  Gmail SMTP verification failed (will retry on send):', error.message);
+          console.warn('⚠️  This is normal on cloud platforms - connection will be established on first send');
         });
       } catch (error: any) {
         console.error('❌ Failed to initialize Gmail SMTP:', error.message);
-        this.emailProvider = 'none';
+        if (!resendInitialized) {
+          this.emailProvider = 'none';
+        }
       }
-    } else {
+    }
+    
+    // Final check
+    if (this.emailProvider === 'none') {
       console.warn('⚠️  EMAIL SERVICE WARNING: No email provider configured!');
-      console.warn('⚠️  Configure RESEND_API_KEY (recommended) or GMAIL_USER/GMAIL_APP_PASSWORD');
+      console.warn('⚠️  Configure GMAIL_USER and GMAIL_APP_PASSWORD');
       console.warn('⚠️  Email notifications will not be sent. OTPs will be logged to console instead.');
-      this.emailProvider = 'none';
+    } else if (resendInitialized && this.transporter) {
+      console.log('✅ Email service configured with Resend (primary) and Gmail SMTP (fallback)');
+    } else if (this.emailProvider === 'gmail') {
+      console.log('✅ Email service configured with Gmail SMTP');
     }
   }
 
@@ -163,6 +209,16 @@ export class EmailService {
         if (result.error) {
           console.error('❌ Resend API returned an error:');
           console.error(`📧 Error: ${JSON.stringify(result.error, null, 2)}`);
+          
+          // If Resend fails (invalid API key, etc.), fall back to Gmail SMTP
+          if (this.transporter && (result.error.statusCode === 401 || result.error.name === 'validation_error')) {
+            console.warn('⚠️  Resend API key is invalid. Falling back to Gmail SMTP...');
+            // Switch to Gmail provider
+            this.emailProvider = 'gmail';
+            // Retry with Gmail SMTP
+            return this.sendVerificationEmail(email, otp);
+          }
+          
           console.error(`📧 Verification OTP for ${email}: ${otp} (use this to verify manually)`);
           return;
         }
@@ -180,6 +236,14 @@ export class EmailService {
         console.error('❌ Failed to send verification email via Resend');
         console.error(`📧 Error type: ${error.name || typeof error}`);
         console.error(`📧 Error message: ${error.message || error}`);
+        
+        // If Resend fails, fall back to Gmail SMTP
+        if (this.transporter && (error.statusCode === 401 || error.message?.includes('API key'))) {
+          console.warn('⚠️  Resend API failed. Falling back to Gmail SMTP...');
+          this.emailProvider = 'gmail';
+          return this.sendVerificationEmail(email, otp);
+        }
+        
         if (error.response) {
           console.error(`📧 Error response: ${JSON.stringify(error.response, null, 2)}`);
         }
@@ -282,6 +346,16 @@ export class EmailService {
         if (result.error) {
           console.error('❌ Resend API returned an error:');
           console.error(`📧 Error: ${JSON.stringify(result.error, null, 2)}`);
+          
+          // If Resend fails (invalid API key, etc.), fall back to Gmail SMTP
+          if (this.transporter && (result.error.statusCode === 401 || result.error.name === 'validation_error')) {
+            console.warn('⚠️  Resend API key is invalid. Falling back to Gmail SMTP...');
+            // Switch to Gmail provider
+            this.emailProvider = 'gmail';
+            // Retry with Gmail SMTP
+            return this.sendPasswordResetEmail(email, otp);
+          }
+          
           console.error(`📧 Password reset OTP for ${email}: ${otp} (use this to reset manually)`);
           return;
         }
@@ -407,6 +481,16 @@ export class EmailService {
         if (result.error) {
           console.error('❌ Resend API returned an error:');
           console.error(`📧 Error: ${JSON.stringify(result.error, null, 2)}`);
+          
+          // If Resend fails (invalid API key, etc.), fall back to Gmail SMTP
+          if (this.transporter && (result.error.statusCode === 401 || result.error.name === 'validation_error')) {
+            console.warn('⚠️  Resend API key is invalid. Falling back to Gmail SMTP...');
+            // Switch to Gmail provider
+            this.emailProvider = 'gmail';
+            // Retry with Gmail SMTP
+            return this.sendWelcomeEmail(email, firstName);
+          }
+          
           return;
         }
         

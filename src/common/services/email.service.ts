@@ -15,6 +15,13 @@ export class EmailService {
     const gmailUser = this.configService.get<string>('GMAIL_USER');
     const gmailPassword = this.configService.get<string>('GMAIL_APP_PASSWORD');
 
+    // Debug logging for environment detection
+    console.log('🔍 Email Service Configuration Check:');
+    console.log(`   RESEND_API_KEY: ${resendApiKey ? 'SET (' + resendApiKey.substring(0, 8) + '***)' : '❌ NOT SET'}`);
+    console.log(`   RESEND_FROM_EMAIL: ${this.configService.get<string>('RESEND_FROM_EMAIL') || 'NOT SET (will use default)'}`);
+    console.log(`   GMAIL_USER: ${gmailUser ? gmailUser.substring(0, 3) + '***' : '❌ NOT SET'}`);
+    console.log(`   GMAIL_APP_PASSWORD: ${gmailPassword ? 'SET (' + gmailPassword.length + ' chars)' : '❌ NOT SET'}`);
+
     // Prefer Resend API (works better on cloud platforms like Render.com)
     if (resendApiKey) {
       try {

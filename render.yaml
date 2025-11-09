@@ -5,7 +5,7 @@ services:
     plan: free
     rootDir: backend
     buildCommand: npm install && npm run build
-    startCommand: node ./dist/main.js
+    startCommand: node ./dist/src/main.js
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV

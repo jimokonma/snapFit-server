@@ -70,24 +70,44 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto): Promise<{ user: any; tokens: any }> {
+  async login(loginDto: LoginDto): Promise<{ user: any; tokens: any; requiresEmailVerification?: boolean }> {
     const { email, password } = loginDto;
 
     // Find user
     const user = await this.userModel.findOne({ email });
     if (!user) {
+      console.error(`❌ Login failed: User not found for email: ${email}`);
       throw new UnauthorizedException('Invalid credentials');
     }
 
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      console.error(`❌ Login failed: Invalid password for email: ${email}`);
       throw new UnauthorizedException('Invalid credentials');
     }
 
     // Check if email is verified
     if (!user.isEmailVerified) {
-      throw new UnauthorizedException('Please verify your email before logging in');
+      console.warn(`⚠️  Login: Email not verified for ${email}`);
+      console.warn(`📧 Email verification token: ${user.emailVerificationToken}`);
+      console.warn(`⏰ Token expires: ${user.emailVerificationExpires}`);
+      
+      // In development mode, allow login without email verification if SKIP_EMAIL_VERIFICATION is set
+      const skipEmailVerification = this.configService.get<string>('SKIP_EMAIL_VERIFICATION') === 'true';
+      if (skipEmailVerification && this.configService.get<string>('NODE_ENV') === 'development') {
+        console.warn('⚠️  DEVELOPMENT MODE: Allowing login without email verification');
+        user.isEmailVerified = true;
+        await user.save();
+      } else {
+        // Return user info but indicate email verification is required
+        const sanitizedUser = this.getSafeUserData(user);
+        return { 
+          user: sanitizedUser, 
+          tokens: null,
+          requiresEmailVerification: true
+        };
+      }
     }
 
     // Update isActive locally if needed (before generating tokens)
@@ -97,6 +117,8 @@ export class AuthService {
 
     // Generate tokens (this will save refreshToken and isActive in a single DB operation)
     const tokens = await this.generateTokens(user);
+
+    console.log(`✅ Login successful for user: ${email}`);
 
     // Return only essential user information (no need to fetch again)
     const sanitizedUser = this.getSafeUserData(user);
@@ -237,7 +259,7 @@ export class AuthService {
     return user;
   }
 
-  async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<{ message: string }> {
+  async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<{ message: string; user: any }> {
     const { email, otp } = verifyEmailDto;
 
     const user = await this.userModel.findOne({
@@ -260,7 +282,13 @@ export class AuthService {
       console.error('Background email send failed:', err.message);
     });
 
-    return { message: 'Email verified successfully! Welcome to SnapFit!' };
+    // Return user data with onboarding progress for navigation
+    const sanitizedUser = this.getSafeUserData(user);
+
+    return { 
+      message: 'Email verified successfully! Welcome to SnapFit!',
+      user: sanitizedUser
+    };
   }
 
   async resendVerificationEmail(resendVerificationDto: ResendVerificationDto): Promise<{ message: string }> {
@@ -297,6 +325,7 @@ export class AuthService {
     const user = await this.userModel.findOne({ email });
     if (!user) {
       // Don't reveal if user exists or not for security
+      console.log(`📧 Password reset requested for non-existent email: ${email}`);
       return { message: 'If an account with that email exists, we\'ve sent you a password reset code.' };
     }
 
@@ -308,24 +337,31 @@ export class AuthService {
     user.passwordResetExpires = passwordResetExpires;
     await user.save();
 
+    console.log(`📧 Password reset OTP generated for ${email}: ${otp}`);
+    console.log(`⏰ OTP expires at: ${passwordResetExpires}`);
+
     // Send password reset email asynchronously (don't block response)
     this.emailService.sendPasswordResetEmail(email, otp).catch(err => {
-      console.error('Background email send failed:', err.message);
+      console.error('❌ Background email send failed:', err.message);
+      console.error(`📧 Password reset OTP for ${email}: ${otp}`);
     });
 
     return { message: 'If an account with that email exists, we\'ve sent you a password reset code.' };
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
-    const { otp, password } = resetPasswordDto;
+    const { email, otp, password } = resetPasswordDto;
 
+    // Find user by email AND OTP for security
     const user = await this.userModel.findOne({
+      email: email,
       passwordResetToken: otp,
       passwordResetExpires: { $gt: new Date() },
     });
 
     if (!user) {
-      throw new BadRequestException('Invalid or expired reset code');
+      console.error(`❌ Password reset failed: Invalid or expired OTP for email: ${email}`);
+      throw new BadRequestException('Invalid or expired reset code. Please request a new code.');
     }
 
     // Hash new password
@@ -335,6 +371,8 @@ export class AuthService {
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save();
+
+    console.log(`✅ Password reset successful for user: ${email}`);
 
     return { message: 'Password reset successfully!' };
   }

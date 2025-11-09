@@ -5,21 +5,47 @@ import * as nodemailer from 'nodemailer';
 @Injectable()
 export class EmailService {
   private transporter: nodemailer.Transporter;
+  private isEmailConfigured: boolean = false;
 
   constructor(private configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: this.configService.get<string>('GMAIL_USER'),
-        pass: this.configService.get<string>('GMAIL_APP_PASSWORD'),
-      },
-      connectionTimeout: 10000, // 10 seconds
-      greetingTimeout: 10000, // 10 seconds
-      socketTimeout: 10000, // 10 seconds
-    });
+    const gmailUser = this.configService.get<string>('GMAIL_USER');
+    const gmailPassword = this.configService.get<string>('GMAIL_APP_PASSWORD');
+
+    // Check if email credentials are configured
+    if (!gmailUser || !gmailPassword) {
+      console.warn('⚠️  EMAIL SERVICE WARNING: GMAIL_USER or GMAIL_APP_PASSWORD not configured!');
+      console.warn('⚠️  Email notifications will not be sent. Please configure email credentials in .env file.');
+      this.isEmailConfigured = false;
+      return;
+    }
+
+    try {
+      this.transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: gmailUser,
+          pass: gmailPassword,
+        },
+        connectionTimeout: 10000, // 10 seconds
+        greetingTimeout: 10000, // 10 seconds
+        socketTimeout: 10000, // 10 seconds
+      });
+      this.isEmailConfigured = true;
+      console.log('✅ Email service initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize email service:', error);
+      this.isEmailConfigured = false;
+    }
   }
 
   async sendVerificationEmail(email: string, otp: string): Promise<void> {
+    if (!this.isEmailConfigured) {
+      console.error('❌ Cannot send verification email: Email service not configured');
+      console.error(`📧 Verification OTP for ${email}: ${otp}`);
+      console.error('⚠️  Please configure GMAIL_USER and GMAIL_APP_PASSWORD in .env file');
+      return;
+    }
+
     const mailOptions = {
       from: this.configService.get<string>('GMAIL_USER'),
       to: email,
@@ -64,19 +90,31 @@ export class EmailService {
     };
 
     try {
-      await Promise.race([
+      const result = await Promise.race([
         this.transporter.sendMail(mailOptions),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Email send timeout')), 15000)
         )
       ]);
-    } catch (error) {
-      // Log error but don't throw - email sending should not block registration
-      console.error('Failed to send verification email:', error.message);
+      console.log(`✅ Verification email sent successfully to ${email}`);
+    } catch (error: any) {
+      // Log detailed error but don't throw - email sending should not block registration
+      console.error('❌ Failed to send verification email:', error.message || error);
+      console.error(`📧 Verification OTP for ${email}: ${otp}`);
+      if (error.response) {
+        console.error('Email service error response:', error.response);
+      }
     }
   }
 
   async sendPasswordResetEmail(email: string, otp: string): Promise<void> {
+    if (!this.isEmailConfigured) {
+      console.error('❌ Cannot send password reset email: Email service not configured');
+      console.error(`📧 Password reset OTP for ${email}: ${otp}`);
+      console.error('⚠️  Please configure GMAIL_USER and GMAIL_APP_PASSWORD in .env file');
+      return;
+    }
+
     const mailOptions = {
       from: this.configService.get<string>('GMAIL_USER'),
       to: email,
@@ -120,19 +158,31 @@ export class EmailService {
     };
 
     try {
-      await Promise.race([
+      const result = await Promise.race([
         this.transporter.sendMail(mailOptions),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Email send timeout')), 15000)
         )
       ]);
-    } catch (error) {
-      // Log error but don't throw - email sending should not block password reset
-      console.error('Failed to send password reset email:', error.message);
+      console.log(`✅ Password reset email sent successfully to ${email}`);
+    } catch (error: any) {
+      // Log detailed error but don't throw - email sending should not block password reset
+      console.error('❌ Failed to send password reset email:', error.message || error);
+      console.error(`📧 Password reset OTP for ${email}: ${otp}`);
+      if (error.response) {
+        console.error('Email service error response:', error.response);
+      }
     }
   }
 
   async sendWelcomeEmail(email: string, firstName: string): Promise<void> {
+    if (!this.isEmailConfigured) {
+      console.error('❌ Cannot send welcome email: Email service not configured');
+      console.error(`📧 Welcome email would be sent to ${email} (${firstName})`);
+      console.error('⚠️  Please configure GMAIL_USER and GMAIL_APP_PASSWORD in .env file');
+      return;
+    }
+
     const mailOptions = {
       from: this.configService.get<string>('GMAIL_USER'),
       to: email,
@@ -181,15 +231,19 @@ export class EmailService {
     };
 
     try {
-      await Promise.race([
+      const result = await Promise.race([
         this.transporter.sendMail(mailOptions),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Email send timeout')), 15000)
         )
       ]);
-    } catch (error) {
-      // Log error but don't throw - email sending should not block email verification
-      console.error('Failed to send welcome email:', error.message);
+      console.log(`✅ Welcome email sent successfully to ${email}`);
+    } catch (error: any) {
+      // Log detailed error but don't throw - email sending should not block email verification
+      console.error('❌ Failed to send welcome email:', error.message || error);
+      if (error.response) {
+        console.error('Email service error response:', error.response);
+      }
     }
   }
 }

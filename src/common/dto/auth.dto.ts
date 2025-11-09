@@ -137,6 +137,10 @@ export class ForgotPasswordDto {
 }
 
 export class ResetPasswordDto {
+  @ApiProperty({ example: 'john@example.com' })
+  @IsEmail()
+  email: string;
+
   @ApiProperty({ example: '123456' })
   @IsString()
   otp: string;

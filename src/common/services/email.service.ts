@@ -20,6 +20,10 @@ export class EmailService {
     }
 
     try {
+      console.log(`📧 Initializing email service with Gmail...`);
+      console.log(`📧 Gmail User: ${gmailUser ? gmailUser.substring(0, 3) + '***' : 'NOT SET'}`);
+      console.log(`📧 Gmail Password: ${gmailPassword ? 'SET (' + gmailPassword.length + ' chars)' : 'NOT SET'}`);
+      
       this.transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -30,19 +34,38 @@ export class EmailService {
         greetingTimeout: 10000, // 10 seconds
         socketTimeout: 10000, // 10 seconds
       });
+      
       this.isEmailConfigured = true;
       console.log('✅ Email service initialized successfully');
-    } catch (error) {
-      console.error('❌ Failed to initialize email service:', error);
+      
+      // Verify transporter connection asynchronously (don't block constructor)
+      this.transporter.verify().then(() => {
+        console.log('✅ Email service connection verified');
+      }).catch((error: any) => {
+        console.error('⚠️  Email service verification failed:', error.message);
+        console.error('⚠️  Emails may not send. Check Gmail credentials.');
+      });
+    } catch (error: any) {
+      console.error('❌ Failed to initialize email service');
+      console.error(`📧 Error: ${error.message || error}`);
+      if (error.code) {
+        console.error(`📧 Error code: ${error.code}`);
+      }
       this.isEmailConfigured = false;
+      console.error('⚠️  Emails will not be sent. OTPs will be logged to console instead.');
     }
   }
 
   async sendVerificationEmail(email: string, otp: string): Promise<void> {
+    // Always log OTP for debugging (even if email is configured)
+    console.log(`📧 Attempting to send verification email to: ${email}`);
+    console.log(`🔑 Verification OTP: ${otp}`);
+    
     if (!this.isEmailConfigured) {
       console.error('❌ Cannot send verification email: Email service not configured');
       console.error(`📧 Verification OTP for ${email}: ${otp}`);
       console.error('⚠️  Please configure GMAIL_USER and GMAIL_APP_PASSWORD in .env file');
+      console.error('⚠️  For now, use the OTP above to manually verify your email');
       return;
     }
 
@@ -90,6 +113,7 @@ export class EmailService {
     };
 
     try {
+      console.log(`📤 Sending email via Gmail SMTP...`);
       const result = await Promise.race([
         this.transporter.sendMail(mailOptions),
         new Promise((_, reject) => 
@@ -97,21 +121,35 @@ export class EmailService {
         )
       ]);
       console.log(`✅ Verification email sent successfully to ${email}`);
+      console.log(`📨 Email result:`, result);
     } catch (error: any) {
       // Log detailed error but don't throw - email sending should not block registration
-      console.error('❌ Failed to send verification email:', error.message || error);
-      console.error(`📧 Verification OTP for ${email}: ${otp}`);
+      console.error('❌ Failed to send verification email');
+      console.error(`📧 Error type: ${error.name || typeof error}`);
+      console.error(`📧 Error message: ${error.message || error}`);
+      console.error(`📧 Verification OTP for ${email}: ${otp} (use this to verify manually)`);
       if (error.response) {
-        console.error('Email service error response:', error.response);
+        console.error('📧 Email service error response:', JSON.stringify(error.response, null, 2));
+      }
+      if (error.code) {
+        console.error(`📧 Error code: ${error.code}`);
+      }
+      if (error.command) {
+        console.error(`📧 Failed command: ${error.command}`);
       }
     }
   }
 
   async sendPasswordResetEmail(email: string, otp: string): Promise<void> {
+    // Always log OTP for debugging (even if email is configured)
+    console.log(`📧 Attempting to send password reset email to: ${email}`);
+    console.log(`🔑 Password reset OTP: ${otp}`);
+    
     if (!this.isEmailConfigured) {
       console.error('❌ Cannot send password reset email: Email service not configured');
       console.error(`📧 Password reset OTP for ${email}: ${otp}`);
       console.error('⚠️  Please configure GMAIL_USER and GMAIL_APP_PASSWORD in .env file');
+      console.error('⚠️  For now, use the OTP above to manually reset your password');
       return;
     }
 
@@ -158,6 +196,7 @@ export class EmailService {
     };
 
     try {
+      console.log(`📤 Sending password reset email via Gmail SMTP...`);
       const result = await Promise.race([
         this.transporter.sendMail(mailOptions),
         new Promise((_, reject) => 
@@ -165,12 +204,21 @@ export class EmailService {
         )
       ]);
       console.log(`✅ Password reset email sent successfully to ${email}`);
+      console.log(`📨 Email result:`, result);
     } catch (error: any) {
       // Log detailed error but don't throw - email sending should not block password reset
-      console.error('❌ Failed to send password reset email:', error.message || error);
-      console.error(`📧 Password reset OTP for ${email}: ${otp}`);
+      console.error('❌ Failed to send password reset email');
+      console.error(`📧 Error type: ${error.name || typeof error}`);
+      console.error(`📧 Error message: ${error.message || error}`);
+      console.error(`📧 Password reset OTP for ${email}: ${otp} (use this to reset manually)`);
       if (error.response) {
-        console.error('Email service error response:', error.response);
+        console.error('📧 Email service error response:', JSON.stringify(error.response, null, 2));
+      }
+      if (error.code) {
+        console.error(`📧 Error code: ${error.code}`);
+      }
+      if (error.command) {
+        console.error(`📧 Failed command: ${error.command}`);
       }
     }
   }

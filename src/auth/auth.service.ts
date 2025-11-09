@@ -59,8 +59,11 @@ export class AuthService {
     const tokens = await this.generateTokens(savedUser);
 
     // Send verification email asynchronously (don't block response)
+    console.log(`📧 Registration: Generated OTP for ${email}: ${emailVerificationToken}`);
+    console.log(`⏰ OTP expires at: ${emailVerificationExpires}`);
     this.emailService.sendVerificationEmail(email, emailVerificationToken).catch(err => {
-      console.error('Background email send failed:', err.message);
+      console.error('❌ Background email send failed:', err.message);
+      console.error(`📧 OTP for manual verification: ${emailVerificationToken}`);
     });
 
     return { 
@@ -312,8 +315,11 @@ export class AuthService {
     await user.save();
 
     // Send verification email asynchronously (don't block response)
+    console.log(`📧 Registration: Generated OTP for ${email}: ${emailVerificationToken}`);
+    console.log(`⏰ OTP expires at: ${emailVerificationExpires}`);
     this.emailService.sendVerificationEmail(email, emailVerificationToken).catch(err => {
-      console.error('Background email send failed:', err.message);
+      console.error('❌ Background email send failed:', err.message);
+      console.error(`📧 OTP for manual verification: ${emailVerificationToken}`);
     });
 
     return { message: 'Verification email sent successfully!' };

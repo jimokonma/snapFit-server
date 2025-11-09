@@ -117,12 +117,14 @@ export class EmailService {
 
         // Try first configuration
         this.transporter = nodemailer.createTransport(smtpConfigs[0]);
-        this.fromEmail = gmailUser;
         
-        // If Resend wasn't initialized, use Gmail as primary
+        // Only set fromEmail to Gmail if Resend wasn't initialized
+        // If Resend is initialized, keep using the Resend fromEmail
         if (!resendInitialized) {
+          this.fromEmail = gmailUser;
           this.emailProvider = 'gmail';
         }
+        // If Resend is initialized, this.fromEmail is already set correctly above
         
         console.log('✅ Gmail SMTP transporter created');
         console.log(`📧 Using port ${smtpConfigs[0].port} with ${smtpConfigs[0].secure ? 'SSL' : 'STARTTLS'}`);

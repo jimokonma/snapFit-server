@@ -146,17 +146,46 @@ export class EmailService {
     if (this.emailProvider === 'resend' && this.resend) {
       try {
         console.log(`📤 Sending email via Resend API...`);
+        console.log(`📧 From: ${this.fromEmail}`);
+        console.log(`📧 To: ${email}`);
+        
         const result = await this.resend.emails.send({
           from: this.fromEmail,
           to: email,
           subject,
           html,
         });
-        console.log(`✅ Verification email sent successfully to ${email}`);
-        console.log(`📨 Resend email ID: ${result.data?.id}`);
+        
+        // Log full response for debugging
+        console.log(`📨 Resend API Response:`, JSON.stringify(result, null, 2));
+        
+        // Check if there's an error in the response
+        if (result.error) {
+          console.error('❌ Resend API returned an error:');
+          console.error(`📧 Error: ${JSON.stringify(result.error, null, 2)}`);
+          console.error(`📧 Verification OTP for ${email}: ${otp} (use this to verify manually)`);
+          return;
+        }
+        
+        // Check if email ID is present (indicates success)
+        if (result.data?.id) {
+          console.log(`✅ Verification email sent successfully to ${email}`);
+          console.log(`📨 Resend email ID: ${result.data.id}`);
+        } else {
+          console.warn('⚠️  Resend API call succeeded but no email ID returned');
+          console.warn(`📧 Response: ${JSON.stringify(result, null, 2)}`);
+          console.warn(`📧 Verification OTP for ${email}: ${otp} (use this to verify manually)`);
+        }
       } catch (error: any) {
         console.error('❌ Failed to send verification email via Resend');
-        console.error(`📧 Error: ${error.message || error}`);
+        console.error(`📧 Error type: ${error.name || typeof error}`);
+        console.error(`📧 Error message: ${error.message || error}`);
+        if (error.response) {
+          console.error(`📧 Error response: ${JSON.stringify(error.response, null, 2)}`);
+        }
+        if (error.statusCode) {
+          console.error(`📧 Status code: ${error.statusCode}`);
+        }
         console.error(`📧 Verification OTP for ${email}: ${otp} (use this to verify manually)`);
       }
     } else if (this.emailProvider === 'gmail' && this.transporter) {
@@ -236,17 +265,46 @@ export class EmailService {
     if (this.emailProvider === 'resend' && this.resend) {
       try {
         console.log(`📤 Sending password reset email via Resend API...`);
+        console.log(`📧 From: ${this.fromEmail}`);
+        console.log(`📧 To: ${email}`);
+        
         const result = await this.resend.emails.send({
           from: this.fromEmail,
           to: email,
           subject,
           html,
         });
-        console.log(`✅ Password reset email sent successfully to ${email}`);
-        console.log(`📨 Resend email ID: ${result.data?.id}`);
+        
+        // Log full response for debugging
+        console.log(`📨 Resend API Response:`, JSON.stringify(result, null, 2));
+        
+        // Check if there's an error in the response
+        if (result.error) {
+          console.error('❌ Resend API returned an error:');
+          console.error(`📧 Error: ${JSON.stringify(result.error, null, 2)}`);
+          console.error(`📧 Password reset OTP for ${email}: ${otp} (use this to reset manually)`);
+          return;
+        }
+        
+        // Check if email ID is present (indicates success)
+        if (result.data?.id) {
+          console.log(`✅ Password reset email sent successfully to ${email}`);
+          console.log(`📨 Resend email ID: ${result.data.id}`);
+        } else {
+          console.warn('⚠️  Resend API call succeeded but no email ID returned');
+          console.warn(`📧 Response: ${JSON.stringify(result, null, 2)}`);
+          console.warn(`📧 Password reset OTP for ${email}: ${otp} (use this to reset manually)`);
+        }
       } catch (error: any) {
         console.error('❌ Failed to send password reset email via Resend');
-        console.error(`📧 Error: ${error.message || error}`);
+        console.error(`📧 Error type: ${error.name || typeof error}`);
+        console.error(`📧 Error message: ${error.message || error}`);
+        if (error.response) {
+          console.error(`📧 Error response: ${JSON.stringify(error.response, null, 2)}`);
+        }
+        if (error.statusCode) {
+          console.error(`📧 Status code: ${error.statusCode}`);
+        }
         console.error(`📧 Password reset OTP for ${email}: ${otp} (use this to reset manually)`);
       }
     } else if (this.emailProvider === 'gmail' && this.transporter) {
@@ -332,16 +390,44 @@ export class EmailService {
     if (this.emailProvider === 'resend' && this.resend) {
       try {
         console.log(`📤 Sending welcome email via Resend API...`);
+        console.log(`📧 From: ${this.fromEmail}`);
+        console.log(`📧 To: ${email}`);
+        
         const result = await this.resend.emails.send({
           from: this.fromEmail,
           to: email,
           subject,
           html,
         });
-        console.log(`✅ Welcome email sent successfully to ${email}`);
-        console.log(`📨 Resend email ID: ${result.data?.id}`);
+        
+        // Log full response for debugging
+        console.log(`📨 Resend API Response:`, JSON.stringify(result, null, 2));
+        
+        // Check if there's an error in the response
+        if (result.error) {
+          console.error('❌ Resend API returned an error:');
+          console.error(`📧 Error: ${JSON.stringify(result.error, null, 2)}`);
+          return;
+        }
+        
+        // Check if email ID is present (indicates success)
+        if (result.data?.id) {
+          console.log(`✅ Welcome email sent successfully to ${email}`);
+          console.log(`📨 Resend email ID: ${result.data.id}`);
+        } else {
+          console.warn('⚠️  Resend API call succeeded but no email ID returned');
+          console.warn(`📧 Response: ${JSON.stringify(result, null, 2)}`);
+        }
       } catch (error: any) {
-        console.error('❌ Failed to send welcome email via Resend:', error.message || error);
+        console.error('❌ Failed to send welcome email via Resend');
+        console.error(`📧 Error type: ${error.name || typeof error}`);
+        console.error(`📧 Error message: ${error.message || error}`);
+        if (error.response) {
+          console.error(`📧 Error response: ${JSON.stringify(error.response, null, 2)}`);
+        }
+        if (error.statusCode) {
+          console.error(`📧 Status code: ${error.statusCode}`);
+        }
       }
     } else if (this.emailProvider === 'gmail' && this.transporter) {
       try {

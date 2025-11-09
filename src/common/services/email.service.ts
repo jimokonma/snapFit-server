@@ -28,8 +28,30 @@ export class EmailService {
       try {
         console.log(`📧 Attempting to initialize Resend API...`);
         this.resend = new Resend(resendApiKey);
-        // Test the API key by trying to verify it (we'll catch errors in send methods)
-        this.fromEmail = this.configService.get<string>('RESEND_FROM_EMAIL') || 'onboarding@resend.dev';
+        
+        // Get Resend from email - MUST be a verified domain
+        const resendFromEmail = this.configService.get<string>('RESEND_FROM_EMAIL');
+        console.log(`📧 RESEND_FROM_EMAIL from config: ${resendFromEmail || 'NOT SET'}`);
+        
+        if (!resendFromEmail) {
+          console.error('❌ RESEND_FROM_EMAIL is not set!');
+          console.error('❌ You must set RESEND_FROM_EMAIL=noreply@jim-okonma.xyz in Render.com');
+          console.error('❌ Falling back to default: onboarding@resend.dev');
+          this.fromEmail = 'onboarding@resend.dev';
+        } else {
+          // Validate it's not a Gmail address
+          if (resendFromEmail.includes('@gmail.com') || resendFromEmail.includes('@googlemail.com')) {
+            console.error('❌ ERROR: RESEND_FROM_EMAIL cannot be a Gmail address!');
+            console.error(`❌ Current value: ${resendFromEmail}`);
+            console.error('❌ You must use a verified domain email (e.g., noreply@jim-okonma.xyz)');
+            console.error('❌ Setting to default: onboarding@resend.dev');
+            this.fromEmail = 'onboarding@resend.dev';
+          } else {
+            this.fromEmail = resendFromEmail;
+            console.log(`✅ Using verified domain email: ${this.fromEmail}`);
+          }
+        }
+        
         this.emailProvider = 'resend';
         resendInitialized = true;
         console.log(`✅ Resend API initialized (will verify on first send)`);

@@ -210,8 +210,18 @@ export class EmailService {
           console.error('❌ Resend API returned an error:');
           console.error(`📧 Error: ${JSON.stringify(result.error, null, 2)}`);
           
+          // Check for domain verification error (403)
+          if (result.error.statusCode === 403 && result.error.message?.includes('domain is not verified')) {
+            console.error('❌ Domain verification error!');
+            console.error(`📧 Current from email: ${this.fromEmail}`);
+            console.error(`📧 You must use a verified domain email address (e.g., noreply@jim-okonma.xyz)`);
+            console.error(`📧 Set RESEND_FROM_EMAIL=noreply@jim-okonma.xyz in Render.com environment variables`);
+            console.error(`📧 Verification OTP for ${email}: ${otp} (use this to verify manually)`);
+            return;
+          }
+          
           // If Resend fails (invalid API key, etc.), fall back to Gmail SMTP
-          if (this.transporter && (result.error.statusCode === 401 || result.error.name === 'validation_error')) {
+          if (this.transporter && (result.error.statusCode === 401 || (result.error.name === 'validation_error' && result.error.statusCode !== 403))) {
             console.warn('⚠️  Resend API key is invalid. Falling back to Gmail SMTP...');
             // Switch to Gmail provider
             this.emailProvider = 'gmail';
@@ -347,8 +357,18 @@ export class EmailService {
           console.error('❌ Resend API returned an error:');
           console.error(`📧 Error: ${JSON.stringify(result.error, null, 2)}`);
           
+          // Check for domain verification error (403)
+          if (result.error.statusCode === 403 && result.error.message?.includes('domain is not verified')) {
+            console.error('❌ Domain verification error!');
+            console.error(`📧 Current from email: ${this.fromEmail}`);
+            console.error(`📧 You must use a verified domain email address (e.g., noreply@jim-okonma.xyz)`);
+            console.error(`📧 Set RESEND_FROM_EMAIL=noreply@jim-okonma.xyz in Render.com environment variables`);
+            console.error(`📧 Password reset OTP for ${email}: ${otp} (use this to reset manually)`);
+            return;
+          }
+          
           // If Resend fails (invalid API key, etc.), fall back to Gmail SMTP
-          if (this.transporter && (result.error.statusCode === 401 || result.error.name === 'validation_error')) {
+          if (this.transporter && (result.error.statusCode === 401 || (result.error.name === 'validation_error' && result.error.statusCode !== 403))) {
             console.warn('⚠️  Resend API key is invalid. Falling back to Gmail SMTP...');
             // Switch to Gmail provider
             this.emailProvider = 'gmail';
@@ -482,8 +502,17 @@ export class EmailService {
           console.error('❌ Resend API returned an error:');
           console.error(`📧 Error: ${JSON.stringify(result.error, null, 2)}`);
           
+          // Check for domain verification error (403)
+          if (result.error.statusCode === 403 && result.error.message?.includes('domain is not verified')) {
+            console.error('❌ Domain verification error!');
+            console.error(`📧 Current from email: ${this.fromEmail}`);
+            console.error(`📧 You must use a verified domain email address (e.g., noreply@jim-okonma.xyz)`);
+            console.error(`📧 Set RESEND_FROM_EMAIL=noreply@jim-okonma.xyz in Render.com environment variables`);
+            return;
+          }
+          
           // If Resend fails (invalid API key, etc.), fall back to Gmail SMTP
-          if (this.transporter && (result.error.statusCode === 401 || result.error.name === 'validation_error')) {
+          if (this.transporter && (result.error.statusCode === 401 || (result.error.name === 'validation_error' && result.error.statusCode !== 403))) {
             console.warn('⚠️  Resend API key is invalid. Falling back to Gmail SMTP...');
             // Switch to Gmail provider
             this.emailProvider = 'gmail';

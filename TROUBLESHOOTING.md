@@ -74,14 +74,25 @@ The login system requires email verification. If you registered but didn't verif
    - **"Authentication failed"**: Gmail account security settings blocking access
 
 6. **Render.com / Cloud Platform Issues:**
-   - Gmail SMTP connections may be blocked or restricted on some cloud platforms
-   - The email service now uses explicit SMTP configuration (port 587 with STARTTLS) and retry logic
-   - If Gmail SMTP continues to fail, consider using a transactional email service:
-     - **SendGrid** (recommended for production)
-     - **Resend** (modern, developer-friendly)
-     - **Mailgun** (reliable, good free tier)
-     - **AWS SES** (cost-effective at scale)
-   - These services provide APIs instead of SMTP and work better on cloud platforms
+   - Gmail SMTP connections are often blocked on cloud platforms like Render.com
+   - **Solution: Use Resend API** (now integrated and recommended)
+   
+   **Setting up Resend:**
+   1. Sign up at https://resend.com (free tier: 3,000 emails/month)
+   2. Create an API key in the Resend dashboard
+   3. Add to Render.com environment variables:
+      - `RESEND_API_KEY=re_your-api-key-here`
+      - `RESEND_FROM_EMAIL=onboarding@resend.dev` (or your verified domain)
+   4. The email service will automatically use Resend API instead of Gmail SMTP
+   5. Restart your Render.com service
+   
+   **Alternative Email Services:**
+   - **Resend** ✅ (now integrated - recommended)
+   - **SendGrid** (good for production)
+   - **Mailgun** (reliable, good free tier)
+   - **AWS SES** (cost-effective at scale)
+   
+   These services use HTTP APIs instead of SMTP and work reliably on cloud platforms.
 
 ## Debugging Steps
 

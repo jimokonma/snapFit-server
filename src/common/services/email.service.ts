@@ -24,15 +24,24 @@ export class EmailService {
       console.log(`📧 Gmail User: ${gmailUser ? gmailUser.substring(0, 3) + '***' : 'NOT SET'}`);
       console.log(`📧 Gmail Password: ${gmailPassword ? 'SET (' + gmailPassword.length + ' chars)' : 'NOT SET'}`);
       
+      // Use explicit SMTP configuration for better compatibility with cloud platforms
       this.transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false, // true for 465, false for other ports
         auth: {
           user: gmailUser,
           pass: gmailPassword,
         },
-        connectionTimeout: 10000, // 10 seconds
-        greetingTimeout: 10000, // 10 seconds
-        socketTimeout: 10000, // 10 seconds
+        tls: {
+          rejectUnauthorized: false, // Allow self-signed certificates (needed for some cloud platforms)
+        },
+        connectionTimeout: 30000, // 30 seconds - increased for cloud platforms
+        greetingTimeout: 30000, // 30 seconds
+        socketTimeout: 30000, // 30 seconds
+        requireTLS: true,
+        debug: false, // Set to true for detailed SMTP logs
+        logger: false,
       });
       
       this.isEmailConfigured = true;
@@ -113,15 +122,36 @@ export class EmailService {
     };
 
     try {
-      console.log(`📤 Sending email via Gmail SMTP...`);
-      const result = await Promise.race([
-        this.transporter.sendMail(mailOptions),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Email send timeout')), 15000)
-        )
-      ]);
-      console.log(`✅ Verification email sent successfully to ${email}`);
-      console.log(`📨 Email result:`, result);
+      console.log(`📤 Sending email via Gmail SMTP (port 587)...`);
+      
+      // Retry logic: try up to 3 times with exponential backoff
+      let lastError: any;
+      const maxRetries = 3;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const result = await Promise.race([
+            this.transporter.sendMail(mailOptions),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Email send timeout')), 45000) // 45 seconds
+            )
+          ]);
+          console.log(`✅ Verification email sent successfully to ${email} (attempt ${attempt})`);
+          console.log(`📨 Email result:`, result);
+          return; // Success, exit function
+        } catch (attemptError: any) {
+          lastError = attemptError;
+          if (attempt < maxRetries) {
+            const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
+            console.warn(`⚠️  Email send attempt ${attempt} failed, retrying in ${delay}ms...`);
+            console.warn(`   Error: ${attemptError.message || attemptError}`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+      }
+      
+      // All retries failed, throw the last error
+      throw lastError;
     } catch (error: any) {
       // Log detailed error but don't throw - email sending should not block registration
       console.error('❌ Failed to send verification email');
@@ -196,15 +226,36 @@ export class EmailService {
     };
 
     try {
-      console.log(`📤 Sending password reset email via Gmail SMTP...`);
-      const result = await Promise.race([
-        this.transporter.sendMail(mailOptions),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Email send timeout')), 15000)
-        )
-      ]);
-      console.log(`✅ Password reset email sent successfully to ${email}`);
-      console.log(`📨 Email result:`, result);
+      console.log(`📤 Sending password reset email via Gmail SMTP (port 587)...`);
+      
+      // Retry logic: try up to 3 times with exponential backoff
+      let lastError: any;
+      const maxRetries = 3;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const result = await Promise.race([
+            this.transporter.sendMail(mailOptions),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Email send timeout')), 45000) // 45 seconds
+            )
+          ]);
+          console.log(`✅ Password reset email sent successfully to ${email} (attempt ${attempt})`);
+          console.log(`📨 Email result:`, result);
+          return; // Success, exit function
+        } catch (attemptError: any) {
+          lastError = attemptError;
+          if (attempt < maxRetries) {
+            const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
+            console.warn(`⚠️  Email send attempt ${attempt} failed, retrying in ${delay}ms...`);
+            console.warn(`   Error: ${attemptError.message || attemptError}`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+      }
+      
+      // All retries failed, throw the last error
+      throw lastError;
     } catch (error: any) {
       // Log detailed error but don't throw - email sending should not block password reset
       console.error('❌ Failed to send password reset email');
@@ -279,13 +330,35 @@ export class EmailService {
     };
 
     try {
-      const result = await Promise.race([
-        this.transporter.sendMail(mailOptions),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Email send timeout')), 15000)
-        )
-      ]);
-      console.log(`✅ Welcome email sent successfully to ${email}`);
+      console.log(`📤 Sending welcome email via Gmail SMTP (port 587)...`);
+      
+      // Retry logic: try up to 3 times with exponential backoff
+      let lastError: any;
+      const maxRetries = 3;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const result = await Promise.race([
+            this.transporter.sendMail(mailOptions),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Email send timeout')), 45000) // 45 seconds
+            )
+          ]);
+          console.log(`✅ Welcome email sent successfully to ${email} (attempt ${attempt})`);
+          return; // Success, exit function
+        } catch (attemptError: any) {
+          lastError = attemptError;
+          if (attempt < maxRetries) {
+            const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
+            console.warn(`⚠️  Email send attempt ${attempt} failed, retrying in ${delay}ms...`);
+            console.warn(`   Error: ${attemptError.message || attemptError}`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+      }
+      
+      // All retries failed
+      throw lastError;
     } catch (error: any) {
       // Log detailed error but don't throw - email sending should not block email verification
       console.error('❌ Failed to send welcome email:', error.message || error);

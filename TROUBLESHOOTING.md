@@ -70,8 +70,18 @@ The login system requires email verification. If you registered but didn't verif
 
 5. **Common Email Errors:**
    - **"Invalid login"**: Wrong Gmail App Password
-   - **"Connection timeout"**: Network/firewall issues
+   - **"Connection timeout" (ETIMEDOUT)**: Network/firewall issues, especially on cloud platforms like Render.com
    - **"Authentication failed"**: Gmail account security settings blocking access
+
+6. **Render.com / Cloud Platform Issues:**
+   - Gmail SMTP connections may be blocked or restricted on some cloud platforms
+   - The email service now uses explicit SMTP configuration (port 587 with STARTTLS) and retry logic
+   - If Gmail SMTP continues to fail, consider using a transactional email service:
+     - **SendGrid** (recommended for production)
+     - **Resend** (modern, developer-friendly)
+     - **Mailgun** (reliable, good free tier)
+     - **AWS SES** (cost-effective at scale)
+   - These services provide APIs instead of SMTP and work better on cloud platforms
 
 ## Debugging Steps
 

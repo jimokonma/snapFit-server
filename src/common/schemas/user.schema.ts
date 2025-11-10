@@ -77,10 +77,18 @@ export class User {
 
   @Prop({ type: Object })
   bodyPhotos: {
+    // Legacy 4-photo structure (for backward compatibility)
     front?: string;
     back?: string;
     left?: string;
     fullBody?: string;
+    // New 6-photo MediaPipe structure
+    upper_front?: string;
+    upper_back?: string;
+    upper_side?: string;
+    lower_front?: string;
+    lower_back?: string;
+    lower_side?: string;
   };
 
   @Prop([String])
@@ -131,6 +139,7 @@ export class User {
       muscleDevelopment: string;
       posture: string;
       symmetry: string;
+      bodyType?: 'ectomorph' | 'mesomorph' | 'endomorph' | 'balanced'; // Added for MediaPipe
     };
     strengths: string[];
     areasForImprovement: string[];
@@ -139,10 +148,38 @@ export class User {
       secondaryFocus: string;
       workoutIntensity: string;
       exerciseTypes: string[];
+      correctiveExercises?: string[]; // Added for MediaPipe
     };
     detailedDescription: string;
     analyzedAt: Date;
-    analyzedFromPhoto: string; // URL of the photo that was analyzed
+    analyzedFromPhoto?: string; // URL of the photo that was analyzed (legacy)
+    // MediaPipe comprehensive analysis fields
+    measurements?: {
+      shoulderToHipRatio?: number;
+      legToTorsoRatio?: number;
+      shoulderWidth?: number;
+      hipWidth?: number;
+      overallProportions?: string;
+    };
+    postureAnalysis?: {
+      forwardHeadPosture?: string;
+      shoulderAlignment?: string;
+      spinalAlignment?: string;
+      hipAlignment?: string;
+      overallPostureScore?: number;
+    };
+    symmetryAnalysis?: {
+      upperBodySymmetry?: number;
+      lowerBodySymmetry?: number;
+      overallSymmetry?: number;
+      asymmetryAreas?: string[];
+    };
+    mediaPipeData?: {
+      allPhotosAnalyzed?: boolean;
+      missingPhotos?: string[];
+      photoQualityIssues?: string[];
+      landmarkConfidenceAverage?: number;
+    };
   };
 
   // AI-Generated Workout Foundation

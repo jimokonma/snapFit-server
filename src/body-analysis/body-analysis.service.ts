@@ -9,6 +9,13 @@ import { AiService } from '../ai/ai.service';
 import { BodyAnalysisData, ComprehensiveBodyAnalysis } from '../ai/ai.service';
 import { User, UserDocument } from '../common/schemas/user.schema';
 
+interface OnboardingStages {
+  profileInfo?: boolean;
+  fitnessGoal?: boolean;
+  equipmentSelection?: boolean;
+  bodyAnalysis?: boolean;
+}
+
 @Injectable()
 export class BodyAnalysisService {
   private readonly logger = new Logger(BodyAnalysisService.name);
@@ -168,7 +175,7 @@ export class BodyAnalysisService {
       }
 
       // Validate all onboarding stages are completed before allowing analysis
-      const onboarding = user.onboarding || {};
+      const onboarding: OnboardingStages = (user.onboarding as OnboardingStages) || {};
       if (!onboarding.profileInfo || !onboarding.fitnessGoal || !onboarding.equipmentSelection) {
         const missingStages = [];
         if (!onboarding.profileInfo) missingStages.push('Profile Info');
@@ -282,13 +289,12 @@ export class BodyAnalysisService {
       updatedFields['onboarding.bodyAnalysis'] = true;
       updatedFields.bodyAnalysisStatus = 'completed';
 
-      // Check if all onboarding stages are completed
-      const onboarding = user.onboarding || {};
+      // Check if all onboarding stages are completed (bodyAnalysis will be true after update)
       const allStagesDone =
         onboarding.profileInfo &&
         onboarding.fitnessGoal &&
         onboarding.equipmentSelection &&
-        onboarding.bodyAnalysis; // This will be true after we update
+        true; // bodyAnalysis will be set to true in the update
 
       // Only set onboardingCompleted if all stages are done
       if (allStagesDone && !user.onboardingCompleted) {

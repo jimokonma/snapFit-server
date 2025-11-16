@@ -159,9 +159,11 @@ export class AuthService {
   }
 
   async completeOnboarding(userId: string, onboardingDto: OnboardingDto): Promise<{ message: string; user: any }> {
+    // Do NOT mark onboardingCompleted here anymore.
+    // Only body analysis completion can flip onboardingCompleted.
     const user = await this.userModel.findByIdAndUpdate(
       userId,
-      { ...onboardingDto, hasUsedFreeTrial: true, onboardingCompleted: true },
+      { ...onboardingDto, hasUsedFreeTrial: true },
       { new: true }
     );
 
@@ -223,7 +225,7 @@ export class AuthService {
       isActive: user.isActive,
       fitnessGoal: user.fitnessGoal,
       experienceLevel: user.experienceLevel,
-      onboardingProgress: user.onboardingProgress,
+      onboarding: user.onboarding,
       createdAt: (user as any).createdAt
       // ❌ EXCLUDED SENSITIVE/UNNECESSARY FIELDS:
       // - password (security risk)
@@ -435,12 +437,11 @@ export class AuthService {
         weight: parseInt(weight),
         experienceLevel,
         workoutHistory,
-        onboardingProgress: {
-          profileInfoCompleted: true,
-          fitnessGoalCompleted: false,
-          bodyPhotosCompleted: false,
-          equipmentPhotosCompleted: false,
-          currentStep: 1,
+        onboarding: {
+          profileInfo: true,
+          fitnessGoal: false,
+          equipmentSelection: false,
+          bodyAnalysis: false,
         },
       },
       { new: true }
@@ -463,12 +464,11 @@ export class AuthService {
       userId,
       {
         fitnessGoal,
-        onboardingProgress: {
-          profileInfoCompleted: true,
-          fitnessGoalCompleted: true,
-          bodyPhotosCompleted: false,
-          equipmentPhotosCompleted: false,
-          currentStep: 2,
+        onboarding: {
+          profileInfo: true,
+          fitnessGoal: true,
+          equipmentSelection: false,
+          bodyAnalysis: false,
         },
       },
       { new: true }
@@ -513,13 +513,7 @@ export class AuthService {
       userId,
       {
         bodyPhotos,
-        onboardingProgress: {
-          profileInfoCompleted: true,
-          fitnessGoalCompleted: true,
-          bodyPhotosCompleted: true,
-          equipmentPhotosCompleted: false,
-          currentStep: 3,
-        },
+        'onboarding.bodyAnalysis': false, // Photos uploaded but not analyzed yet
       },
       { new: true }
     );
@@ -620,14 +614,8 @@ export class AuthService {
       userId,
       {
         selectedEquipment,
-        onboardingCompleted: true,
-        onboardingProgress: {
-          profileInfoCompleted: true,
-          fitnessGoalCompleted: true,
-          bodyPhotosCompleted: true,
-          equipmentPhotosCompleted: true,
-          currentStep: 4,
-        },
+        'onboarding.equipmentSelection': true,
+        // Do NOT set onboardingCompleted here - body analysis completion will set it
       },
       { new: true }
     );

@@ -92,6 +92,8 @@ export class UsersService {
     equipmentPhotos: string[];
     selectedEquipment: string[];
   }): Promise<User> {
+    // Do NOT mark onboardingCompleted here anymore.
+    // Body analysis completion will be the sole authority to set onboardingCompleted.
     return this.updateProfile(userId, {
       age: onboardingData.age,
       height: onboardingData.height,
@@ -102,13 +104,11 @@ export class UsersService {
       bodyPhotos: onboardingData.bodyPhotos,
       equipmentPhotos: onboardingData.equipmentPhotos,
       selectedEquipment: onboardingData.selectedEquipment,
-      onboardingCompleted: true,
-      onboardingProgress: {
-        profileInfoCompleted: true,
-        fitnessGoalCompleted: true,
-        bodyPhotosCompleted: true,
-        equipmentPhotosCompleted: true,
-        currentStep: 4,
+      onboarding: {
+        profileInfo: true,
+        fitnessGoal: true,
+        equipmentSelection: true,
+        bodyAnalysis: false, // Will be set to true when body analysis completes successfully
       },
     });
   }

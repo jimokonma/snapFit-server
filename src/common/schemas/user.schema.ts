@@ -100,13 +100,16 @@ export class User {
   @Prop({ default: false })
   onboardingCompleted: boolean;
 
+  // Tracks the status of the MediaPipe/AI analysis flow that gates onboarding completion
+  @Prop({ enum: ['pending', 'completed', 'failed'], default: 'pending' })
+  bodyAnalysisStatus: 'pending' | 'completed' | 'failed';
+
   @Prop({ type: Object })
-  onboardingProgress: {
-    profileInfoCompleted: boolean;
-    fitnessGoalCompleted: boolean;
-    bodyPhotosCompleted: boolean;
-    equipmentPhotosCompleted: boolean;
-    currentStep: number;
+  onboarding: {
+    profileInfo: boolean;
+    fitnessGoal: boolean;
+    equipmentSelection: boolean;
+    bodyAnalysis: boolean;
   };
 
   @Prop({ default: false })

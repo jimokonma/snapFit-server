@@ -167,7 +167,19 @@ export class BodyAnalysisService {
         throw new NotFoundException('User not found');
       }
 
-      // Get all 6 photos for this user with timeout
+      // Validate all onboarding stages are completed before allowing analysis
+      const onboarding = user.onboarding || {};
+      if (!onboarding.profileInfo || !onboarding.fitnessGoal || !onboarding.equipmentSelection) {
+        const missingStages = [];
+        if (!onboarding.profileInfo) missingStages.push('Profile Info');
+        if (!onboarding.fitnessGoal) missingStages.push('Fitness Goal');
+        if (!onboarding.equipmentSelection) missingStages.push('Equipment Selection');
+        throw new BadRequestException(
+          `Please complete all onboarding stages before analysis. Missing: ${missingStages.join(', ')}`
+        );
+      }
+
+      // Get all photos for this user with timeout
       const queryTimeout = 5000; // 5 seconds
       const bodyAnalyses = await Promise.race([
         this.bodyAnalysisModel.find({ userId }).sort({ createdAt: -1 }),
@@ -178,6 +190,24 @@ export class BodyAnalysisService {
 
       if (!bodyAnalyses || bodyAnalyses.length === 0) {
         throw new NotFoundException('No body photos found. Please upload photos first.');
+      }
+
+      // Validate we have all 6 required photo types and each passed validation
+      const requiredTypes = ['upper_front', 'upper_back', 'upper_side', 'lower_front', 'lower_back', 'lower_side'];
+      const byType: Record<string, any> = {};
+      for (const analysis of bodyAnalyses) {
+        if (!byType[analysis.photoType]) byType[analysis.photoType] = analysis;
+      }
+      const missing = requiredTypes.filter((t) => !byType[t]);
+      if (missing.length > 0) {
+        // Mark failed status and block progression
+        await this.userModel.findByIdAndUpdate(userId, { bodyAnalysisStatus: 'failed' });
+        throw new BadRequestException(`Missing required photos: ${missing.join(', ')}`);
+      }
+      const invalid = requiredTypes.filter((t) => byType[t] && byType[t].validationPassed === false);
+      if (invalid.length > 0) {
+        await this.userModel.findByIdAndUpdate(userId, { bodyAnalysisStatus: 'failed' });
+        throw new BadRequestException(`Some photos failed validation: ${invalid.join(', ')}`);
       }
 
       // Convert to BodyAnalysisData format
@@ -234,19 +264,39 @@ export class BodyAnalysisService {
         ),
       ]);
 
-      // Update user with comprehensive analysis
+      // Update user with comprehensive analysis + mark analysis status and onboardingCompleted if all steps done
+      const updatedFields: any = {
+        bodyAnalysis: {
+          overallAssessment: comprehensiveAnalysis.overallAssessment,
+          bodyComposition: comprehensiveAnalysis.bodyComposition,
+          strengths: comprehensiveAnalysis.strengths,
+          areasForImprovement: comprehensiveAnalysis.areasForImprovement,
+          recommendations: comprehensiveAnalysis.recommendations,
+          detailedDescription: comprehensiveAnalysis.detailedDescription,
+          analyzedAt: new Date(),
+        },
+        bodyAnalysisStatus: 'completed',
+      };
+
+      // Set bodyAnalysis stage to completed
+      updatedFields['onboarding.bodyAnalysis'] = true;
+      updatedFields.bodyAnalysisStatus = 'completed';
+
+      // Check if all onboarding stages are completed
+      const onboarding = user.onboarding || {};
+      const allStagesDone =
+        onboarding.profileInfo &&
+        onboarding.fitnessGoal &&
+        onboarding.equipmentSelection &&
+        onboarding.bodyAnalysis; // This will be true after we update
+
+      // Only set onboardingCompleted if all stages are done
+      if (allStagesDone && !user.onboardingCompleted) {
+        updatedFields.onboardingCompleted = true;
+      }
+
       await Promise.race([
-        this.userModel.findByIdAndUpdate(userId, {
-          bodyAnalysis: {
-            overallAssessment: comprehensiveAnalysis.overallAssessment,
-            bodyComposition: comprehensiveAnalysis.bodyComposition,
-            strengths: comprehensiveAnalysis.strengths,
-            areasForImprovement: comprehensiveAnalysis.areasForImprovement,
-            recommendations: comprehensiveAnalysis.recommendations,
-            detailedDescription: comprehensiveAnalysis.detailedDescription,
-            analyzedAt: new Date(),
-          },
-        }),
+        this.userModel.findByIdAndUpdate(userId, updatedFields),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('User update timeout')), saveTimeout)
         ),
@@ -257,6 +307,10 @@ export class BodyAnalysisService {
       return comprehensiveAnalysis;
     } catch (error: any) {
       this.logger.error(`Error completing analysis for user ${userId}:`, error);
+      // Mark failed status on error
+      try {
+        await this.userModel.findByIdAndUpdate(userId, { bodyAnalysisStatus: 'failed' });
+      } catch {}
       if (error instanceof NotFoundException || error instanceof BadRequestException) {
         throw error;
       }

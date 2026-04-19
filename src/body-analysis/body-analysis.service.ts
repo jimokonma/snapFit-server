@@ -2,19 +2,9 @@ import { Injectable, NotFoundException, BadRequestException, Logger } from '@nes
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { BodyAnalysis, BodyAnalysisDocument, PhotoType } from '../common/schemas/body-analysis.schema';
-import { ComprehensiveAnalysis, ComprehensiveAnalysisDocument } from '../common/schemas/comprehensive-analysis.schema';
-import { MediaPipeService } from '../mediapipe/mediapipe.service';
 import { MediaService } from '../media/media.service';
-import { AiService } from '../ai/ai.service';
-import { BodyAnalysisData, ComprehensiveBodyAnalysis } from '../ai/ai.service';
+import { AiService, PhotoValidationResult } from '../ai/ai.service';
 import { User, UserDocument } from '../common/schemas/user.schema';
-
-interface OnboardingStages {
-  profileInfo?: boolean;
-  fitnessGoal?: boolean;
-  equipmentSelection?: boolean;
-  bodyAnalysis?: boolean;
-}
 
 @Injectable()
 export class BodyAnalysisService {
@@ -22,351 +12,178 @@ export class BodyAnalysisService {
 
   constructor(
     @InjectModel(BodyAnalysis.name) private bodyAnalysisModel: Model<BodyAnalysisDocument>,
-    @InjectModel(ComprehensiveAnalysis.name) private comprehensiveAnalysisModel: Model<ComprehensiveAnalysisDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    private mediaPipeService: MediaPipeService,
     private mediaService: MediaService,
     private aiService: AiService,
   ) {}
 
   /**
-   * Upload and process a single body photo with MediaPipe analysis
+   * Upload a single body photo, run Claude validation immediately, return result.
+   * Frontend shows the feedback before allowing the user to proceed to the next photo.
    */
-  async uploadPhoto(
+  async uploadAndValidatePhoto(
     userId: string,
     file: Express.Multer.File,
     photoType: PhotoType,
-    preProcessedLandmarks?: any[]
-  ): Promise<BodyAnalysisData> {
-    try {
-      // Validate photo type
-      if (!Object.values(PhotoType).includes(photoType)) {
-        throw new BadRequestException(`Invalid photo type: ${photoType}`);
-      }
+  ): Promise<{ imageUrl: string; validation: PhotoValidationResult }> {
+    if (!file?.buffer) throw new BadRequestException('Invalid file provided');
 
-      // Validate file
-      if (!file || !file.buffer) {
-        throw new BadRequestException('Invalid file provided');
-      }
+    if (file.size > 10 * 1024 * 1024) {
+      throw new BadRequestException('File size exceeds 10MB limit');
+    }
 
-      // Validate file size (max 10MB)
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      if (file.size > maxSize) {
-        throw new BadRequestException('File size exceeds 10MB limit');
-      }
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      throw new BadRequestException('Only JPEG and PNG are allowed');
+    }
 
-      // Validate file type
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-      if (!allowedTypes.includes(file.mimetype)) {
-        throw new BadRequestException('Invalid file type. Only JPEG and PNG are allowed');
-      }
+    const folder = `snapfit/users/${userId}/body-photos`;
+    const imageUrl = await Promise.race([
+      this.mediaService.uploadImage(file, folder),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Image upload timeout')), 30000),
+      ),
+    ]);
 
-    // Check if user already has this photo type
+    const validation = await this.aiService.validatePhoto(imageUrl, photoType as any);
+
     const existing = await this.bodyAnalysisModel.findOne({ userId, photoType });
     if (existing) {
-      this.logger.log(`Updating existing ${photoType} photo for user ${userId}`);
+      await this.bodyAnalysisModel.findByIdAndUpdate(existing._id, {
+        imageUrl,
+        validationPassed: validation.passed,
+        validationIssues: validation.issues,
+        validationFeedback: validation.feedback,
+      });
+    } else {
+      await this.bodyAnalysisModel.create({
+        userId,
+        photoType,
+        imageUrl,
+        validationPassed: validation.passed,
+        validationIssues: validation.issues,
+        validationFeedback: validation.feedback,
+      });
     }
 
-      // Upload image to Cloudinary with timeout
-      const folder = `snapfit/users/${userId}/body-photos`;
-      const uploadTimeout = 30000; // 30 seconds
-      const imageUrl = await Promise.race([
-        this.mediaService.uploadImage(file, folder),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Image upload timeout')), uploadTimeout)
-        ),
-      ]);
+    return { imageUrl, validation };
+  }
 
-      // Process with MediaPipe (accepts pre-processed landmarks from frontend)
-      let bodyAnalysisData: BodyAnalysisData;
-      try {
-        if (preProcessedLandmarks && preProcessedLandmarks.length > 0) {
-          bodyAnalysisData = await this.mediaPipeService.processPreComputedLandmarks(
-            preProcessedLandmarks,
-            photoType,
-            imageUrl
-          );
-        } else {
-          // If no landmarks provided, create minimal data structure
-          // In production, landmarks should be processed on frontend
-          this.logger.warn(`No landmarks provided for ${photoType}. Creating minimal analysis data.`);
-          bodyAnalysisData = {
-            photoType,
-            landmarks: [],
-            worldLandmarks: [],
-            measurements: {},
-            posture: {},
-            symmetry: { symmetryScore: 0 },
-            imageUrl,
-            timestamp: new Date(),
-            validationPassed: false,
-            validationIssues: ['Landmarks not provided. Please process on frontend.'],
-          };
-        }
-      } catch (mpError: any) {
-        this.logger.error(`MediaPipe processing error for ${photoType}:`, mpError);
-        throw new BadRequestException(
-          `Failed to process photo with MediaPipe: ${mpError.message || 'Unknown error'}`
-        );
-      }
+  /**
+   * Complete analysis: analyze all 4 photos + generate 7-day plan.
+   * Called after all 4 photos pass validation.
+   */
+  async completeAnalysis(userId: string): Promise<any> {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
 
-      // Save to database with timeout
-      const dbTimeout = 10000; // 10 seconds
-      const landmarkConfidenceAverage = bodyAnalysisData.landmarks.length > 0
-        ? bodyAnalysisData.landmarks.reduce((sum, l) => sum + l.visibility, 0) / bodyAnalysisData.landmarks.length
-        : 0;
-
-      const bodyAnalysis = await Promise.race([
-        existing
-          ? this.bodyAnalysisModel.findByIdAndUpdate(
-              existing._id,
-              {
-                imageUrl,
-                landmarks: bodyAnalysisData.landmarks,
-                worldLandmarks: bodyAnalysisData.worldLandmarks,
-                measurements: bodyAnalysisData.measurements,
-                posture: bodyAnalysisData.posture,
-                symmetry: bodyAnalysisData.symmetry,
-                validationPassed: bodyAnalysisData.validationPassed,
-                validationIssues: bodyAnalysisData.validationIssues,
-                landmarkConfidenceAverage,
-              },
-              { new: true }
-            )
-          : this.bodyAnalysisModel.create({
-              userId,
-              photoType,
-              imageUrl,
-              landmarks: bodyAnalysisData.landmarks,
-              worldLandmarks: bodyAnalysisData.worldLandmarks,
-              measurements: bodyAnalysisData.measurements,
-              posture: bodyAnalysisData.posture,
-              symmetry: bodyAnalysisData.symmetry,
-              validationPassed: bodyAnalysisData.validationPassed,
-              validationIssues: bodyAnalysisData.validationIssues,
-              landmarkConfidenceAverage,
-            }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Database operation timeout')), dbTimeout)
-        ),
-      ]);
-
-      return bodyAnalysisData;
-    } catch (error: any) {
-      this.logger.error(`Error uploading photo ${photoType} for user ${userId}:`, error);
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
-        throw error;
-      }
+    const onboarding: any = user.onboarding || {};
+    if (!onboarding.profileInfo || !onboarding.fitnessGoal) {
+      const missing = [];
+      if (!onboarding.profileInfo) missing.push('Profile Info');
+      if (!onboarding.fitnessGoal) missing.push('Fitness Goal');
       throw new BadRequestException(
-        `Failed to upload photo: ${error.message || 'Unknown error'}`
+        `Please complete onboarding stages first. Missing: ${missing.join(', ')}`,
       );
     }
-  }
 
-  /**
-   * Complete 6-photo analysis and generate comprehensive report
-   */
-  async completeAnalysis(userId: string): Promise<ComprehensiveBodyAnalysis> {
-    try {
-      // Validate user exists
-      const user = await this.userModel.findById(userId);
-      if (!user) {
-        throw new NotFoundException('User not found');
-      }
+    const requiredTypes = Object.values(PhotoType);
+    const bodyAnalyses = await this.bodyAnalysisModel.find({ userId }).sort({ createdAt: -1 });
 
-      // Validate all onboarding stages are completed before allowing analysis
-      const onboarding: OnboardingStages = (user.onboarding as OnboardingStages) || {};
-      if (!onboarding.profileInfo || !onboarding.fitnessGoal || !onboarding.equipmentSelection) {
-        const missingStages = [];
-        if (!onboarding.profileInfo) missingStages.push('Profile Info');
-        if (!onboarding.fitnessGoal) missingStages.push('Fitness Goal');
-        if (!onboarding.equipmentSelection) missingStages.push('Equipment Selection');
-        throw new BadRequestException(
-          `Please complete all onboarding stages before analysis. Missing: ${missingStages.join(', ')}`
-        );
-      }
+    const byType: Record<string, any> = {};
+    for (const a of bodyAnalyses) {
+      if (!byType[a.photoType]) byType[a.photoType] = a;
+    }
 
-      // Get all photos for this user with timeout
-      const queryTimeout = 5000; // 5 seconds
-      const bodyAnalyses = await Promise.race([
-        this.bodyAnalysisModel.find({ userId }).sort({ createdAt: -1 }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Database query timeout')), queryTimeout)
-        ),
-      ]);
+    const missing = requiredTypes.filter((t) => !byType[t]);
+    if (missing.length > 0) {
+      throw new BadRequestException(`Missing required photos: ${missing.join(', ')}`);
+    }
 
-      if (!bodyAnalyses || bodyAnalyses.length === 0) {
-        throw new NotFoundException('No body photos found. Please upload photos first.');
-      }
-
-      // Validate we have all 6 required photo types and each passed validation
-      const requiredTypes = ['upper_front', 'upper_back', 'upper_side', 'lower_front', 'lower_back', 'lower_side'];
-      const byType: Record<string, any> = {};
-      for (const analysis of bodyAnalyses) {
-        if (!byType[analysis.photoType]) byType[analysis.photoType] = analysis;
-      }
-      const missing = requiredTypes.filter((t) => !byType[t]);
-      if (missing.length > 0) {
-        // Mark failed status and block progression
-        await this.userModel.findByIdAndUpdate(userId, { bodyAnalysisStatus: 'failed' });
-        throw new BadRequestException(`Missing required photos: ${missing.join(', ')}`);
-      }
-      const invalid = requiredTypes.filter((t) => byType[t] && byType[t].validationPassed === false);
-      if (invalid.length > 0) {
-        await this.userModel.findByIdAndUpdate(userId, { bodyAnalysisStatus: 'failed' });
-        throw new BadRequestException(`Some photos failed validation: ${invalid.join(', ')}`);
-      }
-
-      // Convert to BodyAnalysisData format
-      const bodyAnalysisData: BodyAnalysisData[] = bodyAnalyses.map(analysis => ({
-        photoType: analysis.photoType as any,
-        landmarks: analysis.landmarks as any,
-        worldLandmarks: analysis.worldLandmarks as any,
-        measurements: analysis.measurements || {},
-        posture: analysis.posture || {},
-        symmetry: analysis.symmetry || { symmetryScore: 0 },
-        imageUrl: analysis.imageUrl,
-        timestamp: (analysis as any).createdAt || new Date(),
-        validationPassed: analysis.validationPassed,
-        validationIssues: analysis.validationIssues || [],
-      }));
-
-      const userProfile = {
-        age: user.age,
-        height: user.height,
-        weight: user.weight,
-        fitnessGoal: user.fitnessGoal,
-        experienceLevel: user.experienceLevel,
-        workoutHistory: user.workoutHistory,
-      };
-
-      // Generate comprehensive analysis using AI service with timeout
-      const aiTimeout = 60000; // 60 seconds for AI analysis
-      const comprehensiveAnalysis = await Promise.race([
-        this.aiService.analyzeBodyWithMediaPipe(bodyAnalysisData, userProfile),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('AI analysis timeout')), aiTimeout)
-        ),
-      ]);
-
-      // Save comprehensive analysis with timeout
-      const saveTimeout = 10000; // 10 seconds
-      await Promise.race([
-        this.comprehensiveAnalysisModel.create({
-          userId: user._id,
-          bodyAnalysisIds: bodyAnalyses.map(a => a._id),
-          overallAssessment: comprehensiveAnalysis.overallAssessment,
-          bodyComposition: comprehensiveAnalysis.bodyComposition,
-          measurements: comprehensiveAnalysis.measurements,
-          postureAnalysis: comprehensiveAnalysis.postureAnalysis,
-          symmetryAnalysis: comprehensiveAnalysis.symmetryAnalysis,
-          strengths: comprehensiveAnalysis.strengths,
-          areasForImprovement: comprehensiveAnalysis.areasForImprovement,
-          recommendations: comprehensiveAnalysis.recommendations,
-          detailedDescription: comprehensiveAnalysis.detailedDescription,
-          mediaPipeData: comprehensiveAnalysis.mediaPipeData,
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Save operation timeout')), saveTimeout)
-        ),
-      ]);
-
-      // Update user with comprehensive analysis + mark analysis status and onboardingCompleted if all steps done
-      const updatedFields: any = {
-        bodyAnalysis: {
-          overallAssessment: comprehensiveAnalysis.overallAssessment,
-          bodyComposition: comprehensiveAnalysis.bodyComposition,
-          strengths: comprehensiveAnalysis.strengths,
-          areasForImprovement: comprehensiveAnalysis.areasForImprovement,
-          recommendations: comprehensiveAnalysis.recommendations,
-          detailedDescription: comprehensiveAnalysis.detailedDescription,
-          analyzedAt: new Date(),
-        },
-        bodyAnalysisStatus: 'completed',
-      };
-
-      // Set bodyAnalysis stage to completed
-      updatedFields['onboarding.bodyAnalysis'] = true;
-      updatedFields.bodyAnalysisStatus = 'completed';
-
-      // Check if all onboarding stages are completed (bodyAnalysis will be true after update)
-      const allStagesDone =
-        onboarding.profileInfo &&
-        onboarding.fitnessGoal &&
-        onboarding.equipmentSelection &&
-        true; // bodyAnalysis will be set to true in the update
-
-      // Only set onboardingCompleted if all stages are done
-      if (allStagesDone && !user.onboardingCompleted) {
-        updatedFields.onboardingCompleted = true;
-      }
-
-      await Promise.race([
-        this.userModel.findByIdAndUpdate(userId, updatedFields),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('User update timeout')), saveTimeout)
-        ),
-      ]);
-
-      this.logger.log(`Comprehensive analysis completed for user ${userId}`);
-
-      return comprehensiveAnalysis;
-    } catch (error: any) {
-      this.logger.error(`Error completing analysis for user ${userId}:`, error);
-      // Mark failed status on error
-      try {
-        await this.userModel.findByIdAndUpdate(userId, { bodyAnalysisStatus: 'failed' });
-      } catch {}
-      if (error instanceof NotFoundException || error instanceof BadRequestException) {
-        throw error;
-      }
+    const invalid = requiredTypes.filter((t) => byType[t] && byType[t].validationPassed === false);
+    if (invalid.length > 0) {
       throw new BadRequestException(
-        `Failed to complete analysis: ${error.message || 'Unknown error'}`
+        `Some photos failed validation: ${invalid.join(', ')}. Please retake them.`,
       );
     }
-  }
 
-  /**
-   * Get latest comprehensive analysis for a user
-   */
-  async getLatestAnalysis(userId: string): Promise<ComprehensiveAnalysisDocument> {
-    const analysis = await this.comprehensiveAnalysisModel
-      .findOne({ userId })
-      .sort({ createdAt: -1 })
-      .populate('bodyAnalysisIds');
+    const photoUrls = requiredTypes.map((t) => byType[t].imageUrl);
 
-    if (!analysis) {
-      throw new NotFoundException('No comprehensive analysis found. Please complete body photo analysis first.');
+    const userProfile = {
+      age: user.age,
+      height: user.height,
+      weight: user.weight,
+      gender: user.gender,
+      fitnessGoal: user.fitnessGoal,
+      experienceLevel: user.experienceLevel,
+      workoutHistory: user.workoutHistory,
+      daysPerWeek: (user as any).daysPerWeek,
+      injuries: (user as any).injuries,
+    };
+
+    const bodyAnalysis = await Promise.race([
+      this.aiService.analyzeBody(photoUrls, userProfile),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Body analysis timeout')), 90000),
+      ),
+    ]);
+
+    const workoutPlan = await Promise.race([
+      this.aiService.generateWorkoutPlan(userProfile, bodyAnalysis),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Workout generation timeout')), 90000),
+      ),
+    ]);
+
+    const updatedFields: any = {
+      bodyAnalysis: {
+        ...bodyAnalysis,
+        analyzedAt: new Date(),
+      },
+      workoutPlan: {
+        ...workoutPlan,
+        generatedAt: new Date(),
+      },
+      bodyAnalysisStatus: 'completed',
+      'onboarding.bodyAnalysis': true,
+    };
+
+    const allStagesDone = onboarding.profileInfo && onboarding.fitnessGoal;
+    if (allStagesDone && !user.onboardingCompleted) {
+      updatedFields.onboardingCompleted = true;
     }
 
-    return analysis;
+    await this.userModel.findByIdAndUpdate(userId, updatedFields);
+
+    this.logger.log(`Analysis + workout plan completed for user ${userId}`);
+
+    return { bodyAnalysis, workoutPlan };
   }
 
-  /**
-   * Get all uploaded photos with validation status
-   */
+  async getLatestAnalysis(userId: string): Promise<any> {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    if (!user.bodyAnalysis) {
+      throw new NotFoundException('No analysis found. Please complete body photo analysis first.');
+    }
+    return {
+      bodyAnalysis: user.bodyAnalysis,
+      workoutPlan: (user as any).workoutPlan,
+    };
+  }
+
   async getUserPhotos(userId: string): Promise<BodyAnalysisDocument[]> {
     return this.bodyAnalysisModel.find({ userId }).sort({ createdAt: -1 });
   }
 
-  /**
-   * Delete a specific photo
-   */
   async deletePhoto(userId: string, photoType: PhotoType): Promise<void> {
     const analysis = await this.bodyAnalysisModel.findOne({ userId, photoType });
-    if (!analysis) {
-      throw new NotFoundException(`Photo of type ${photoType} not found`);
-    }
-
-    // Delete from Cloudinary
+    if (!analysis) throw new NotFoundException(`Photo of type ${photoType} not found`);
     try {
       await this.mediaService.deleteMedia(analysis.imageUrl);
-    } catch (error) {
-      this.logger.warn(`Failed to delete media from Cloudinary: ${error.message}`);
+    } catch (err) {
+      this.logger.warn(`Failed to delete from Cloudinary: ${err.message}`);
     }
-
-    // Delete from database
     await this.bodyAnalysisModel.findByIdAndDelete(analysis._id);
   }
 }
-

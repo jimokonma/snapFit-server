@@ -65,20 +65,9 @@ export class UsersService {
     return this.updateProfile(userId, { bodyPhotos });
   }
 
-  private getPhotoTypeFromIndex(index: number): 'front' | 'back' | 'left' | 'fullBody' {
-    const types: ('front' | 'back' | 'left' | 'fullBody')[] = ['front', 'back', 'left', 'fullBody'];
+  private getPhotoTypeFromIndex(index: number): 'upper_front' | 'upper_back' | 'side_profile' | 'full_body' {
+    const types: ('upper_front' | 'upper_back' | 'side_profile' | 'full_body')[] = ['upper_front', 'upper_back', 'side_profile', 'full_body'];
     return types[index];
-  }
-
-  async uploadBodyPhoto(userId: string, photoUrl: string, photoType: 'front' | 'back' | 'left' | 'fullBody'): Promise<User> {
-    const user = await this.findById(userId);
-    const bodyPhotos = user.bodyPhotos || {};
-    bodyPhotos[photoType] = photoUrl;
-    return this.updateProfile(userId, { bodyPhotos });
-  }
-
-  async uploadEquipmentPhotos(userId: string, photoUrls: string[]): Promise<User> {
-    return this.updateProfile(userId, { equipmentPhotos: photoUrls });
   }
 
   async completeOnboarding(userId: string, onboardingData: {
@@ -88,12 +77,10 @@ export class UsersService {
     fitnessGoal: string;
     experienceLevel: string;
     workoutHistory: string;
-    bodyPhotos: { front?: string; back?: string; left?: string; fullBody?: string };
-    equipmentPhotos: string[];
-    selectedEquipment: string[];
+    daysPerWeek?: number;
+    injuries?: string;
+    bodyPhotos: { upper_front?: string; upper_back?: string; side_profile?: string; full_body?: string };
   }): Promise<User> {
-    // Do NOT mark onboardingCompleted here anymore.
-    // Body analysis completion will be the sole authority to set onboardingCompleted.
     return this.updateProfile(userId, {
       age: onboardingData.age,
       height: onboardingData.height,
@@ -101,20 +88,15 @@ export class UsersService {
       fitnessGoal: onboardingData.fitnessGoal as any,
       experienceLevel: onboardingData.experienceLevel as any,
       workoutHistory: onboardingData.workoutHistory as any,
+      daysPerWeek: onboardingData.daysPerWeek,
+      injuries: onboardingData.injuries,
       bodyPhotos: onboardingData.bodyPhotos,
-      equipmentPhotos: onboardingData.equipmentPhotos,
-      selectedEquipment: onboardingData.selectedEquipment,
       onboarding: {
         profileInfo: true,
         fitnessGoal: true,
-        equipmentSelection: true,
-        bodyAnalysis: false, // Will be set to true when body analysis completes successfully
+        bodyAnalysis: false,
       },
     });
-  }
-
-  async updateSelectedEquipment(userId: string, equipment: string[]): Promise<User> {
-    return this.updateProfile(userId, { selectedEquipment: equipment });
   }
 
   async incrementFreeTrialInstructions(userId: string): Promise<User> {
@@ -173,11 +155,4 @@ export class UsersService {
     return user.bodyAnalysis;
   }
 
-  async getWorkoutFoundation(userId: string): Promise<any> {
-    const user = await this.findById(userId);
-    if (!user.workoutFoundation) {
-      throw new NotFoundException('Workout foundation not found. Please complete body photo analysis first.');
-    }
-    return user.workoutFoundation;
-  }
 }

@@ -75,27 +75,19 @@ export class User {
   @Prop({ enum: WorkoutHistory })
   workoutHistory: WorkoutHistory;
 
+  @Prop()
+  daysPerWeek: number;
+
+  @Prop()
+  injuries: string;
+
   @Prop({ type: Object })
   bodyPhotos: {
-    // Legacy 4-photo structure (for backward compatibility)
-    front?: string;
-    back?: string;
-    left?: string;
-    fullBody?: string;
-    // New 6-photo MediaPipe structure
     upper_front?: string;
     upper_back?: string;
-    upper_side?: string;
-    lower_front?: string;
-    lower_back?: string;
-    lower_side?: string;
+    side_profile?: string;
+    full_body?: string;
   };
-
-  @Prop([String])
-  equipmentPhotos: string[];
-
-  @Prop([String])
-  selectedEquipment: string[];
 
   @Prop({ default: false })
   onboardingCompleted: boolean;
@@ -108,7 +100,6 @@ export class User {
   onboarding: {
     profileInfo: boolean;
     fitnessGoal: boolean;
-    equipmentSelection: boolean;
     bodyAnalysis: boolean;
   };
 
@@ -133,66 +124,50 @@ export class User {
   @Prop({ default: 0 })
   freeTrialInstructionsUsed: number;
 
-  // AI Body Analysis Data
+  // AI Body Analysis + Workout Plan (generated after photo analysis)
   @Prop({ type: Object })
   bodyAnalysis: {
     overallAssessment: string;
     bodyComposition: {
-      estimatedBodyFat: string;
       muscleDevelopment: string;
       posture: string;
       symmetry: string;
-      bodyType?: 'ectomorph' | 'mesomorph' | 'endomorph' | 'balanced'; // Added for MediaPipe
+      priorityAreas: string[];
     };
     strengths: string[];
     areasForImprovement: string[];
-    recommendations: {
-      primaryFocus: string;
-      secondaryFocus: string;
-      workoutIntensity: string;
-      exerciseTypes: string[];
-      correctiveExercises?: string[]; // Added for MediaPipe
-    };
-    detailedDescription: string;
     analyzedAt: Date;
-    analyzedFromPhoto?: string; // URL of the photo that was analyzed (legacy)
-    // MediaPipe comprehensive analysis fields
-    measurements?: {
-      shoulderToHipRatio?: number;
-      legToTorsoRatio?: number;
-      shoulderWidth?: number;
-      hipWidth?: number;
-      overallProportions?: string;
-    };
-    postureAnalysis?: {
-      forwardHeadPosture?: string;
-      shoulderAlignment?: string;
-      spinalAlignment?: string;
-      hipAlignment?: string;
-      overallPostureScore?: number;
-    };
-    symmetryAnalysis?: {
-      upperBodySymmetry?: number;
-      lowerBodySymmetry?: number;
-      overallSymmetry?: number;
-      asymmetryAreas?: string[];
-    };
-    mediaPipeData?: {
-      allPhotosAnalyzed?: boolean;
-      missingPhotos?: string[];
-      photoQualityIssues?: string[];
-      landmarkConfidenceAverage?: number;
-    };
   };
 
-  // AI-Generated Workout Foundation
   @Prop({ type: Object })
-  workoutFoundation: {
-    personalizedAdvice: string;
-    recommendedWorkoutStyle: string;
-    keyFocusAreas: string[];
-    intensityGuidelines: string;
-    progressionStrategy: string;
+  workoutPlan: {
+    title: string;
+    description: string;
+    days: Array<{
+      dayNumber: number;
+      dayName: string;
+      focus: string;
+      isRestDay: boolean;
+      estimatedDuration: number;
+      exercises: Array<{
+        name: string;
+        sets: number;
+        reps: string;
+        restTime: string;
+        notes?: string;
+      }>;
+    }>;
+    nutrition: {
+      caloricBaseline: string;
+      macroTargets: string;
+      mealTiming: string;
+    };
+    progressTracking: {
+      weeklyMilestones: string[];
+      strengthBenchmarks: string[];
+      photoRetakeDate: string;
+    };
+    motivationalNote: string;
     generatedAt: Date;
   };
 }

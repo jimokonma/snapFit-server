@@ -1,6 +1,8 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { BodyAnalysisData, MediaPipeLandmark } from '../ai/ai.service';
+
+export interface BodyAnalysisData { [key: string]: any }
+export interface MediaPipeLandmark { x: number; y: number; z: number; visibility?: number }
 
 /**
  * MediaPipe Service for Body Analysis

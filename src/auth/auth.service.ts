@@ -426,8 +426,8 @@ export class AuthService {
 
   // Step-by-step onboarding methods
   async saveProfileInfo(userId: string, profileInfoDto: any): Promise<{ message: string; user: any }> {
-    const { gender, age, height, weight, experienceLevel, workoutHistory } = profileInfoDto;
-    
+    const { gender, age, height, weight, experienceLevel, workoutHistory, daysPerWeek, injuries } = profileInfoDto;
+
     const user = await this.userModel.findByIdAndUpdate(
       userId,
       {
@@ -437,10 +437,11 @@ export class AuthService {
         weight: parseInt(weight),
         experienceLevel,
         workoutHistory,
+        daysPerWeek: daysPerWeek ? parseInt(daysPerWeek) : undefined,
+        injuries: injuries || null,
         onboarding: {
           profileInfo: true,
           fitnessGoal: false,
-          equipmentSelection: false,
           bodyAnalysis: false,
         },
       },
@@ -459,7 +460,7 @@ export class AuthService {
 
   async saveFitnessGoal(userId: string, fitnessGoalDto: any): Promise<{ message: string; user: any }> {
     const { fitnessGoal } = fitnessGoalDto;
-    
+
     const user = await this.userModel.findByIdAndUpdate(
       userId,
       {
@@ -467,7 +468,6 @@ export class AuthService {
         onboarding: {
           profileInfo: true,
           fitnessGoal: true,
-          equipmentSelection: false,
           bodyAnalysis: false,
         },
       },
@@ -484,7 +484,7 @@ export class AuthService {
     };
   }
 
-  async saveBodyPhotos(userId: string, files: Express.Multer.File[]): Promise<{ message: string; user: any; bodyAnalysis?: any }> {
+  async saveBodyPhotos(userId: string, files: Express.Multer.File[]): Promise<{ message: string; user: any }> {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files provided');
     }
@@ -493,9 +493,10 @@ export class AuthService {
       throw new BadRequestException('Maximum 4 body photos allowed');
     }
 
-    // Upload files to Cloudinary and map them to body photo types
+    const photoTypes: ('upper_front' | 'upper_back' | 'side_profile' | 'full_body')[] = ['upper_front', 'upper_back', 'side_profile', 'full_body'];
+
     const uploadPromises = files.map(async (file, index) => {
-      const photoType = this.getPhotoTypeFromIndex(index);
+      const photoType = photoTypes[index];
       const folder = `snapfit/users/${userId}/body-photos`;
       const url = await this.mediaService.uploadImage(file, folder);
       return { photoType, url };
@@ -503,120 +504,14 @@ export class AuthService {
 
     const uploadResults = await Promise.all(uploadPromises);
 
-    // Create bodyPhotos object
-    const bodyPhotos: { front?: string; back?: string; left?: string; fullBody?: string } = {};
+    const bodyPhotos: { upper_front?: string; upper_back?: string; side_profile?: string; full_body?: string } = {};
     uploadResults.forEach(({ photoType, url }) => {
       bodyPhotos[photoType] = url;
     });
-    
+
     const user = await this.userModel.findByIdAndUpdate(
       userId,
-      {
-        bodyPhotos,
-        'onboarding.bodyAnalysis': false, // Photos uploaded but not analyzed yet
-      },
-      { new: true }
-    );
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    // Perform AI body analysis using all available body photos
-    let bodyAnalysis = null;
-    if (bodyPhotos && (bodyPhotos.front || bodyPhotos.back || bodyPhotos.left || bodyPhotos.fullBody)) {
-      try {
-        // Analyze all available photos and combine the analysis
-        const photoUrls = [
-          bodyPhotos.front,
-          bodyPhotos.back, 
-          bodyPhotos.left,
-          bodyPhotos.fullBody
-        ].filter(url => url); // Remove undefined URLs
-
-        if (photoUrls.length > 0) {
-          console.log('=== RE-ANALYZING BODY PHOTOS ===');
-          console.log('Photo URLs:', photoUrls);
-          console.log('User Profile:', {
-            age: user.age,
-            height: user.height,
-            weight: user.weight,
-            fitnessGoal: user.fitnessGoal,
-            experienceLevel: user.experienceLevel,
-            workoutHistory: user.workoutHistory
-          });
-          
-          // Analyze all available photos for comprehensive analysis
-          bodyAnalysis = await this.aiService.analyzeMultipleBodyPhotos(photoUrls, {
-            age: user.age,
-            height: user.height,
-            weight: user.weight,
-            fitnessGoal: user.fitnessGoal,
-            experienceLevel: user.experienceLevel,
-            workoutHistory: user.workoutHistory
-          });
-
-          console.log('=== NEW BODY ANALYSIS RESULT ===');
-          console.log('Analysis:', bodyAnalysis);
-
-          // Update user with new body analysis (overwrite existing)
-          const updatedUser = await this.userModel.findByIdAndUpdate(userId, {
-            bodyAnalysis: {
-              ...bodyAnalysis,
-              analyzedAt: new Date(),
-              analyzedFromPhotos: photoUrls,
-              totalPhotosAnalyzed: photoUrls.length
-            }
-          }, { new: true });
-
-          // Generate new workout foundation based on the updated body analysis
-          const workoutFoundation = await this.aiService.generateWorkoutFoundation(updatedUser, bodyAnalysis);
-          
-          console.log('=== NEW WORKOUT FOUNDATION ===');
-          console.log('Foundation:', workoutFoundation);
-          
-          // Update workout foundation (overwrite existing)
-          await this.userModel.findByIdAndUpdate(userId, {
-            workoutFoundation: {
-              ...workoutFoundation,
-              generatedAt: new Date()
-            }
-          });
-
-          console.log('=== ANALYSIS COMPLETE ===');
-        }
-
-      } catch (error) {
-        console.error('Failed to analyze body photos:', error);
-        // Continue without analysis - don't fail the onboarding
-      }
-    }
-
-    // Get the final updated user data
-    const finalUser = await this.userModel.findById(userId);
-
-    return {
-      message: 'Body photos uploaded and saved successfully!' + (bodyAnalysis ? ' AI analysis completed!' : ''),
-      user: this.getSafeUserData(finalUser),
-      bodyAnalysis: bodyAnalysis
-    };
-  }
-
-  private getPhotoTypeFromIndex(index: number): 'front' | 'back' | 'left' | 'fullBody' {
-    const types: ('front' | 'back' | 'left' | 'fullBody')[] = ['front', 'back', 'left', 'fullBody'];
-    return types[index];
-  }
-
-  async saveEquipmentSelection(userId: string, equipmentSelectionDto: any): Promise<{ message: string; user: any }> {
-    const { selectedEquipment } = equipmentSelectionDto;
-    
-    const user = await this.userModel.findByIdAndUpdate(
-      userId,
-      {
-        selectedEquipment,
-        'onboarding.equipmentSelection': true,
-        // Do NOT set onboardingCompleted here - body analysis completion will set it
-      },
+      { bodyPhotos, 'onboarding.bodyAnalysis': false },
       { new: true }
     );
 
@@ -625,8 +520,8 @@ export class AuthService {
     }
 
     return {
-      message: 'Equipment selection saved successfully! Onboarding completed!',
-      user: this.getSafeUserData(user)
+      message: 'Body photos uploaded successfully. Use /body-analysis/complete to run AI analysis.',
+      user: this.getSafeUserData(user),
     };
   }
 }

@@ -2,13 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Progress, ProgressDocument } from '../common/schemas/progress.schema';
-import { AiService } from '../ai/ai.service';
-
 @Injectable()
 export class ProgressService {
   constructor(
     @InjectModel(Progress.name) private progressModel: Model<ProgressDocument>,
-    private aiService: AiService,
   ) {}
 
   async createProgress(
@@ -17,17 +14,12 @@ export class ProgressService {
     weight?: number,
     notes?: string,
   ): Promise<Progress> {
-    // Analyze the progress photo
-    const aiAnalysis = await this.aiService.analyzeBodyPhoto(photoUrl);
-
-    // Get the previous progress for comparison
     const previousProgress = await this.getLatestProgress(userId);
 
     const progress = new this.progressModel({
       userId: new Types.ObjectId(userId),
       photoUrl,
       weight,
-      aiAnalysis,
       notes,
       isBaseline: !previousProgress,
       previousProgressId: previousProgress ? previousProgress._id : undefined,

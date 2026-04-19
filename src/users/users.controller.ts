@@ -1,6 +1,5 @@
-import { Controller, Get, Put, Body, UseGuards, Request, Param, Delete, Post, UseInterceptors, UploadedFiles } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { Controller, Get, Put, Body, UseGuards, Request, Param, Delete } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../common/schemas/user.schema';
@@ -26,32 +25,6 @@ export class UsersController {
     return this.usersService.updateProfile(req.user.sub, updateData);
   }
 
-  @Post('body-photos')
-  @UseInterceptors(FilesInterceptor('photos', 4))
-  @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Upload body photos (max 4: front, back, left, fullBody)' })
-  @ApiResponse({ status: 200, description: 'Body photos uploaded successfully' })
-  async uploadBodyPhotos(
-    @Request() req,
-    @UploadedFiles() files: Express.Multer.File[],
-  ) {
-    return this.usersService.uploadBodyPhotos(req.user.sub, files);
-  }
-
-  @Put('body-photo')
-  @ApiOperation({ summary: 'Upload single body photo (legacy)' })
-  @ApiResponse({ status: 200, description: 'Body photo uploaded successfully' })
-  async uploadBodyPhoto(@Request() req, @Body() body: { photoUrl: string; photoType: 'front' | 'back' | 'left' | 'fullBody' }) {
-    return this.usersService.uploadBodyPhoto(req.user.sub, body.photoUrl, body.photoType);
-  }
-
-  @Put('equipment-photos')
-  @ApiOperation({ summary: 'Upload equipment photos' })
-  @ApiResponse({ status: 200, description: 'Equipment photos uploaded successfully' })
-  async uploadEquipmentPhotos(@Request() req, @Body() body: { photoUrls: string[] }) {
-    return this.usersService.uploadEquipmentPhotos(req.user.sub, body.photoUrls);
-  }
-
   @Put('complete-onboarding')
   @ApiOperation({ summary: 'Complete user onboarding' })
   @ApiResponse({ status: 200, description: 'Onboarding completed successfully' })
@@ -62,18 +35,11 @@ export class UsersController {
     fitnessGoal: string;
     experienceLevel: string;
     workoutHistory: string;
-    bodyPhotos: { front?: string; back?: string; left?: string; fullBody?: string };
-    equipmentPhotos: string[];
-    selectedEquipment: string[];
+    daysPerWeek?: number;
+    injuries?: string;
+    bodyPhotos: { upper_front?: string; upper_back?: string; side_profile?: string; full_body?: string };
   }) {
     return this.usersService.completeOnboarding(req.user.sub, onboardingData);
-  }
-
-  @Put('equipment')
-  @ApiOperation({ summary: 'Update selected equipment' })
-  @ApiResponse({ status: 200, description: 'Equipment updated successfully' })
-  async updateEquipment(@Request() req, @Body() body: { equipment: string[] }) {
-    return this.usersService.updateSelectedEquipment(req.user.sub, body.equipment);
   }
 
   @Get('free-trial-status')
@@ -126,10 +92,5 @@ export class UsersController {
     return this.usersService.getBodyAnalysis(req.user.sub);
   }
 
-  @Get('workout-foundation')
-  @ApiOperation({ summary: 'Get user workout foundation' })
-  @ApiResponse({ status: 200, description: 'Workout foundation retrieved successfully' })
-  async getWorkoutFoundation(@Request() req) {
-    return this.usersService.getWorkoutFoundation(req.user.sub);
-  }
+
 }

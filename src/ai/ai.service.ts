@@ -57,9 +57,11 @@ export class AiService {
   private anthropic: Anthropic;
 
   constructor(private configService: ConfigService) {
-    this.anthropic = new Anthropic({
-      apiKey: this.configService.get<string>('ANTHROPIC_API_KEY'),
-    });
+    const apiKey = this.configService.get<string>('ANTHROPIC_API_KEY') || process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new Error('ANTHROPIC_API_KEY environment variable is not set. Add it to Render\'s environment variables.');
+    }
+    this.anthropic = new Anthropic({ apiKey });
   }
 
   async validatePhoto(

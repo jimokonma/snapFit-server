@@ -1,4 +1,4 @@
-# 🔧 SnapFit Backend API
+# 🔧 SnapFit Server
 
 <div align="center">
   <img src="../docs/assets/backend-logo.png" alt="Backend Logo" width="100" height="100">

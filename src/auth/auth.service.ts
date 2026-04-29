@@ -34,7 +34,7 @@ export class AuthService {
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Generate email verification OTP (6 digits)
     const emailVerificationToken = Math.floor(100000 + Math.random() * 900000).toString();
@@ -56,7 +56,7 @@ export class AuthService {
     const savedUser = await user.save();
 
     // Generate tokens (but user needs to verify email to use them)
-    const tokens = await this.generateTokens(savedUser);
+    const tokens = this.generateTokens(savedUser);
 
     // Send verification email asynchronously (don't block response)
     console.log(`📧 Registration: Generated OTP for ${email}: ${emailVerificationToken}`);
@@ -119,7 +119,7 @@ export class AuthService {
     }
 
     // Generate tokens (this will save refreshToken and isActive in a single DB operation)
-    const tokens = await this.generateTokens(user);
+    const tokens = this.generateTokens(user);
 
     console.log(`✅ Login successful for user: ${email}`);
 
@@ -153,7 +153,7 @@ export class AuthService {
       user = await user.save();
     }
 
-    const tokens = await this.generateTokens(user);
+    const tokens = this.generateTokens(user);
     const sanitizedUser = this.getSafeUserData(user);
     return { user: sanitizedUser, tokens };
   }
@@ -186,7 +186,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const tokens = await this.generateTokens(user);
+    const tokens = this.generateTokens(user);
     return { tokens };
   }
 
@@ -194,7 +194,7 @@ export class AuthService {
     await this.userModel.findByIdAndUpdate(userId, { refreshToken: null });
   }
 
-  private async generateTokens(user: UserDocument): Promise<{ accessToken: string; refreshToken: string }> {
+  private generateTokens(user: UserDocument): { accessToken: string; refreshToken: string } {
     const payload = { sub: user._id.toString(), email: user.email };
 
     const accessToken = this.jwtService.sign(payload);
@@ -203,13 +203,8 @@ export class AuthService {
       expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '30d'),
     });
 
-    // Update refresh token and ensure user is active in a single database operation
-    const updateData: any = { refreshToken };
-    if (!user.isActive) {
-      updateData.isActive = true;
-    }
-
-    await this.userModel.findByIdAndUpdate(user._id, updateData, { new: false });
+    // Fire-and-forget — client already has the tokens, no need to block on this
+    this.userModel.findByIdAndUpdate(user._id, { refreshToken }, { new: false }).exec().catch(() => {});
 
     return { accessToken, refreshToken };
   }
@@ -373,7 +368,7 @@ export class AuthService {
     }
 
     // Hash new password
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     user.password = hashedPassword;
     user.passwordResetToken = undefined;
@@ -417,7 +412,7 @@ export class AuthService {
         user = await user.save();
       }
 
-      const tokens = await this.generateTokens(user);
+      const tokens = this.generateTokens(user);
       return { user, tokens };
     } catch (error) {
       throw new UnauthorizedException('Invalid Google token');

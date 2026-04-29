@@ -17,11 +17,8 @@ export class MediaService {
   }
 
   async uploadImage(file: Express.Multer.File, folder: string = 'snapfit'): Promise<string> {
-    // Validate file security
     this.fileSecurityService.validateFile(file, 'image');
-    
-    // Sanitize folder path
-    const sanitizedFolder = this.fileSecurityService.sanitizeFileName(folder);
+    const sanitizedFolder = this.fileSecurityService.sanitizeFolderPath(folder);
     
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
@@ -47,11 +44,8 @@ export class MediaService {
   }
 
   async uploadVideo(file: Express.Multer.File, folder: string = 'snapfit'): Promise<string> {
-    // Validate file security
     this.fileSecurityService.validateFile(file, 'video');
-    
-    // Sanitize folder path
-    const sanitizedFolder = this.fileSecurityService.sanitizeFileName(folder);
+    const sanitizedFolder = this.fileSecurityService.sanitizeFolderPath(folder);
     
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(

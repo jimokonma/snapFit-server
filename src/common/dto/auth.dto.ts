@@ -91,6 +91,16 @@ export class ProfileInfoDto {
   @ApiProperty({ example: 'never', enum: ['never', 'occasionally', 'regularly', '1-3_years', '3+_years'] })
   @IsString()
   workoutHistory: 'never' | 'occasionally' | 'regularly' | '1-3_years' | '3+_years';
+
+  @ApiProperty({ example: '4' })
+  @IsString()
+  @IsOptional()
+  daysPerWeek?: string;
+
+  @ApiProperty({ example: 'Lower back pain', required: false })
+  @IsString()
+  @IsOptional()
+  injuries?: string;
 }
 
 export class FitnessGoalDto {

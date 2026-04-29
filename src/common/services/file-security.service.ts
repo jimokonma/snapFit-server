@@ -17,7 +17,7 @@ export class FileSecurityService {
   ];
 
   private readonly maxFileSize = 10 * 1024 * 1024; // 10MB
-  private readonly maxImageSize = 5 * 1024 * 1024; // 5MB for images
+  private readonly maxImageSize = 10 * 1024 * 1024; // 10MB for images (body photos can be large)
 
   validateFile(file: Express.Multer.File, type: 'image' | 'video' = 'image'): void {
     if (!file) {
@@ -81,13 +81,17 @@ export class FileSecurityService {
   }
 
   sanitizeFileName(fileName: string): string {
-    // Remove path traversal attempts
-    const sanitized = fileName
-      .replace(/\.\./g, '') // Remove .. 
-      .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace special chars
-      .substring(0, 100); // Limit length
-    
-    return sanitized;
+    return fileName
+      .replace(/\.\./g, '')
+      .replace(/[^a-zA-Z0-9.-]/g, '_')
+      .substring(0, 100);
+  }
+
+  sanitizeFolderPath(folderPath: string): string {
+    return folderPath
+      .replace(/\.\./g, '')
+      .replace(/[^a-zA-Z0-9./_-]/g, '_')
+      .substring(0, 200);
   }
 }
 

@@ -11,6 +11,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -25,7 +26,10 @@ export class BodyAnalysisController {
   constructor(private readonly bodyAnalysisService: BodyAnalysisService) {}
 
   @Post('upload-photo')
-  @UseInterceptors(FileInterceptor('photo'))
+  @UseInterceptors(FileInterceptor('photo', {
+    storage: memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+  }))
   @ApiOperation({ summary: 'Upload a body photo — Claude validates immediately and returns feedback' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({

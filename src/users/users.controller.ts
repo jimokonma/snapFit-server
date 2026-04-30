@@ -100,5 +100,11 @@ export class UsersController {
     return this.usersService.getBodyAnalysis(req.user.sub);
   }
 
+  @Get('leaderboard')
+  @ApiOperation({ summary: 'Get aura points leaderboard' })
+  @ApiResponse({ status: 200, description: 'Leaderboard retrieved successfully' })
+  async getLeaderboard(@Request() req) {
+    return this.usersService.getLeaderboard(req.user.sub);
+  }
 
 }

@@ -104,4 +104,18 @@ export class BodyAnalysisController {
     await this.bodyAnalysisService.deletePhoto(user.sub, photoType as PhotoType);
     return { message: `Photo ${photoType} deleted successfully` };
   }
+
+  @Get('history')
+  @ApiOperation({ summary: 'Get full body analysis history for the current user' })
+  @ApiResponse({ status: 200, description: 'Analysis history retrieved successfully' })
+  async getAnalysisHistory(@CurrentUser() user: any) {
+    return this.bodyAnalysisService.getAnalysisHistory(user.sub);
+  }
+
+  @Post('compare')
+  @ApiOperation({ summary: 'AI comparison of first vs latest body analysis' })
+  @ApiResponse({ status: 200, description: 'Comparison generated successfully' })
+  async compareLatestTwo(@CurrentUser() user: any) {
+    return this.bodyAnalysisService.compareLatestTwo(user.sub);
+  }
 }

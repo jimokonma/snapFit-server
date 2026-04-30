@@ -98,7 +98,18 @@ export class WorkoutsService {
     const exercise = day.exercises[exerciseIndex];
     if (!exercise) throw new NotFoundException(`Exercise at index ${exerciseIndex} not found`);
 
+    const previousStatus = (exercise as any).status;
     (exercise as any).status = status;
+
+    // Award aura points only when transitioning to 'done'
+    if (status === 'done' && previousStatus !== 'done') {
+      let pointsToAward = 50;
+      const dayFullyComplete =
+        day.exercises.length > 0 &&
+        day.exercises.every((e: any) => e.status === 'done');
+      if (dayFullyComplete) pointsToAward += 200;
+      await this.usersService.addAuraPoints(userId, pointsToAward);
+    }
 
     const allExercises = workout.days.flatMap(d => d.exercises);
     const done = allExercises.filter(e => (e as any).status === 'done').length;
@@ -170,7 +181,16 @@ export class WorkoutsService {
       const found = this.findExerciseById(workout, exerciseId);
       if (!found) return;
 
-      const videoUrl = await this.aiService.generateExerciseVideo(found.exercise.name);
+      const videoUrl = await this.aiService.generateExerciseVideo({
+        name: found.exercise.name,
+        category: (found.exercise as any).category,
+        sets: found.exercise.sets,
+        reps: found.exercise.reps,
+        description: (found.exercise as any).description,
+        instructions: (found.exercise as any).instructions,
+        tips: (found.exercise as any).tips,
+        notes: found.exercise.notes,
+      });
       (found.exercise as any).instructionVideoUrl = videoUrl;
       (found.exercise as any).videoGenerationStatus = 'ready';
       await workout.save();

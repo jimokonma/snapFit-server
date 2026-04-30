@@ -155,4 +155,44 @@ export class UsersService {
     return user.bodyAnalysis;
   }
 
+  async addAuraPoints(userId: string, points: number): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      [{ $set: { auraPoints: { $max: [0, { $add: [{ $ifNull: ['$auraPoints', 0] }, points] }] } } }],
+    );
+  }
+
+  async getLeaderboard(requestingUserId: string): Promise<{
+    entries: Array<{ rank: number; userId: string; name: string; initials: string; auraPoints: number }>;
+    currentUserRank: number;
+    totalAthletes: number;
+  }> {
+    const [topUsers, currentUser, totalAthletes] = await Promise.all([
+      this.userModel
+        .find({ onboardingCompleted: true })
+        .select('firstName lastName auraPoints')
+        .sort({ auraPoints: -1 })
+        .limit(20),
+      this.userModel.findById(requestingUserId).select('auraPoints'),
+      this.userModel.countDocuments({ onboardingCompleted: true }),
+    ]);
+
+    const userPoints: number = (currentUser as any)?.auraPoints ?? 0;
+    const usersAhead = await this.userModel.countDocuments({
+      onboardingCompleted: true,
+      auraPoints: { $gt: userPoints },
+    });
+    const currentUserRank = usersAhead + 1;
+
+    const entries = topUsers.map((user, index) => ({
+      rank: index + 1,
+      userId: (user as any)._id.toString(),
+      name: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
+      initials: `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase(),
+      auraPoints: (user as any).auraPoints ?? 0,
+    }));
+
+    return { entries, currentUserRank, totalAthletes: Math.max(totalAthletes, 1) };
+  }
+
 }

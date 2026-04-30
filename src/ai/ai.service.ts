@@ -312,7 +312,7 @@ Respond with ONLY this JSON (all 7 days must be present, Sunday is always rest):
       throw new Error('OPENAI_API_KEY is not configured. Add it to generate exercise images.');
     }
 
-    const prompt = `Professional fitness instructional photograph of an athlete demonstrating perfect form for "${exerciseName}"${category ? ` (${category})` : ''}. Dramatic dark gym setting with red and black color scheme, high contrast lighting, muscular athlete in athletic wear, full body visible showing correct technique. Educational fitness photography, clean background, sharp detail.`;
+    const prompt = `Clean instructional fitness illustration showing proper exercise technique for "${exerciseName}"${category ? ` (${category} exercise)` : ''}. A person wearing athletic clothing demonstrating correct form in a modern gym. Educational sports training image, clear and professional, focused on movement mechanics and body positioning.`;
 
     const response = await this.openai.images.generate({
       model: 'dall-e-3',
@@ -325,13 +325,44 @@ Respond with ONLY this JSON (all 7 days must be present, Sunday is always rest):
     return response.data[0].url;
   }
 
-  async generateExerciseVideo(exerciseName: string): Promise<string> {
+  async generateExerciseVideo(exercise: {
+    name: string;
+    category?: string;
+    sets?: number;
+    reps?: string;
+    description?: string;
+    instructions?: string;
+    tips?: string;
+    notes?: string;
+  }): Promise<string> {
     const replicateKey = this.configService.get<string>('REPLICATE_API_KEY') || process.env.REPLICATE_API_KEY;
     if (!replicateKey) {
       throw new Error('REPLICATE_API_KEY is not configured. Add it to your environment variables to enable video generation.');
     }
 
-    const prompt = `Fitness instructor demonstrating ${exerciseName} in a professional gym setting. Clear slow-motion technique demonstration showing proper form from start to finish. Dark gym atmosphere, dramatic lighting, educational fitness video.`;
+    // Use Claude to write a precise movement-arc video prompt for this exercise
+    const promptMsg = await this.anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 200,
+      messages: [{
+        role: 'user',
+        content: `Write a single short video generation prompt (max 120 words) for a text-to-video AI model showing the exercise: "${exercise.name}".
+${exercise.category ? `Category: ${exercise.category}` : ''}
+${exercise.instructions ? `Instructions: ${exercise.instructions}` : ''}
+${exercise.notes ? `Notes: ${exercise.notes}` : ''}
+
+Requirements:
+- Describe a fit male athlete in gym clothes inside a professional gym with dark moody lighting
+- Explicitly show the FULL movement cycle: starting position → mid-movement → ending position, looped smoothly
+- Name the exact body position at start and end (e.g. "arms fully extended" → "elbows at 90 degrees" → back to "arms extended")
+- Choose the camera angle that best shows this movement (side view, front view, or 45-degree angle)
+- Slow-motion, 4K, cinematic
+- Output ONLY the prompt text, no explanation`,
+      }],
+    });
+
+    const prompt = (promptMsg.content[0] as any).text?.trim() ||
+      `Fit male athlete performing ${exercise.name} in a dark professional gym. Side-view camera. Slow motion showing complete movement from starting position through full range of motion and back to start. 4K cinematic lighting, educational fitness demonstration.`;
 
     const response = await fetch('https://api.replicate.com/v1/models/minimax/video-01/predictions', {
       method: 'POST',
@@ -340,7 +371,7 @@ Respond with ONLY this JSON (all 7 days must be present, Sunday is always rest):
         'Content-Type': 'application/json',
         'Prefer': 'wait',
       },
-      body: JSON.stringify({ input: { prompt, duration: 5 } }),
+      body: JSON.stringify({ input: { prompt, duration: 6 } }),
     });
 
     if (!response.ok) {
@@ -596,5 +627,64 @@ REJECT if: feet are cut off, body is twisted, or significant parts of the body a
       },
       motivationalNote: 'Every rep counts. Stay consistent, trust the process, and celebrate small wins along the way.',
     };
+  }
+
+  async compareBodyAnalyses(
+    firstAnalysis: BodyAnalysisResult,
+    latestAnalysis: BodyAnalysisResult,
+    daysBetween: number,
+    fitnessGoal: string,
+  ): Promise<{
+    score: number;
+    headline: string;
+    summary: string;
+    improvements: string[];
+    stillWorkingOn: string[];
+  }> {
+    const response = await this.anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 800,
+      system: `You are an expert fitness coach evaluating before-and-after body composition analyses. Be encouraging but honest. Respond ONLY with valid JSON.`,
+      messages: [
+        {
+          role: 'user',
+          content: `Compare these two body analyses from the same person taken ${daysBetween} days apart. Their goal is: ${fitnessGoal}.
+
+BASELINE ANALYSIS (${daysBetween} days ago):
+Overall: ${firstAnalysis.overallAssessment}
+Muscle Development: ${firstAnalysis.bodyComposition?.muscleDevelopment}
+Posture: ${firstAnalysis.bodyComposition?.posture}
+Strengths: ${firstAnalysis.strengths?.join(', ')}
+Areas for Improvement: ${firstAnalysis.areasForImprovement?.join(', ')}
+
+CURRENT ANALYSIS:
+Overall: ${latestAnalysis.overallAssessment}
+Muscle Development: ${latestAnalysis.bodyComposition?.muscleDevelopment}
+Posture: ${latestAnalysis.bodyComposition?.posture}
+Strengths: ${latestAnalysis.strengths?.join(', ')}
+Areas for Improvement: ${latestAnalysis.areasForImprovement?.join(', ')}
+
+Rate progress and provide a comparison. Respond ONLY with this JSON:
+{
+  "score": <number 0.0-10.0, one decimal, how much improvement shown>,
+  "headline": "<3-5 word achievement label e.g. 'Solid Gains Made', 'Strong Progress!'>",
+  "summary": "<2-3 sentences: what changed, what improved, overall momentum>",
+  "improvements": ["<specific improvement 1>", "<specific improvement 2>", "<specific improvement 3>"],
+  "stillWorkingOn": ["<area still developing 1>", "<area still developing 2>"]
+}`,
+        },
+      ],
+    });
+
+    return this.parseJson(
+      (response.content[0] as { type: 'text'; text: string }).text,
+      {
+        score: 5.0,
+        headline: 'Progress Noted',
+        summary: 'Your consistency is showing. Keep pushing toward your goals.',
+        improvements: ['Continued dedication to training'],
+        stillWorkingOn: ['Keep tracking progress regularly'],
+      },
+    );
   }
 }

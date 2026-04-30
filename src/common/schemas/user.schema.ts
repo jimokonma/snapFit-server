@@ -142,6 +142,9 @@ export class User {
     analyzedAt: Date;
   };
 
+  @Prop({ default: 0, min: 0 })
+  auraPoints: number;
+
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

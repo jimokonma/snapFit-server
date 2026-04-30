@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Logger } from '@nes
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { BodyAnalysis, BodyAnalysisDocument, PhotoType } from '../common/schemas/body-analysis.schema';
+import { BodyAnalysisRecord, BodyAnalysisRecordDocument } from '../common/schemas/body-analysis-record.schema';
 import { MediaService } from '../media/media.service';
 import { AiService, PhotoValidationResult } from '../ai/ai.service';
 import { User, UserDocument } from '../common/schemas/user.schema';
@@ -13,6 +14,7 @@ export class BodyAnalysisService {
 
   constructor(
     @InjectModel(BodyAnalysis.name) private bodyAnalysisModel: Model<BodyAnalysisDocument>,
+    @InjectModel(BodyAnalysisRecord.name) private bodyAnalysisRecordModel: Model<BodyAnalysisRecordDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Workout.name) private workoutModel: Model<WorkoutDocument>,
     private mediaService: MediaService,
@@ -21,7 +23,6 @@ export class BodyAnalysisService {
 
   /**
    * Upload a single body photo, run Claude validation immediately, return result.
-   * Frontend shows the feedback before allowing the user to proceed to the next photo.
    */
   async uploadAndValidatePhoto(
     userId: string,
@@ -73,7 +74,7 @@ export class BodyAnalysisService {
 
   /**
    * Complete analysis: analyze all 4 photos + generate 7-day plan.
-   * Called after all 4 photos pass validation.
+   * Saves a BodyAnalysisRecord to the history collection for comparison later.
    */
   async completeAnalysis(userId: string): Promise<any> {
     const user = await this.userModel.findById(userId);
@@ -137,7 +138,6 @@ export class BodyAnalysisService {
       ),
     ]);
 
-    // Save workout plan to its own collection (source of truth)
     const savedWorkout = await this.workoutModel.create({
       userId: new Types.ObjectId(userId),
       title: workoutPlan.title || '7-Day Starter Plan',
@@ -148,10 +148,7 @@ export class BodyAnalysisService {
     });
 
     const updatedFields: any = {
-      bodyAnalysis: {
-        ...bodyAnalysis,
-        analyzedAt: new Date(),
-      },
+      bodyAnalysis: { ...bodyAnalysis, analyzedAt: new Date() },
       bodyAnalysisStatus: 'completed',
       'onboarding.bodyAnalysis': true,
     };
@@ -163,7 +160,23 @@ export class BodyAnalysisService {
 
     await this.userModel.findByIdAndUpdate(userId, updatedFields);
 
-    this.logger.log(`Analysis completed for user ${userId}; workout saved as ${savedWorkout._id}`);
+    // Save to analysis history collection for before/after comparison
+    const existingCount = await this.bodyAnalysisRecordModel.countDocuments({
+      userId: new Types.ObjectId(userId),
+    });
+    await this.bodyAnalysisRecordModel.create({
+      userId: new Types.ObjectId(userId),
+      analysisNumber: existingCount + 1,
+      photoUrls: {
+        upper_front: byType[PhotoType.UPPER_FRONT]?.imageUrl,
+        upper_back: byType[PhotoType.UPPER_BACK]?.imageUrl,
+        side_profile: byType[PhotoType.SIDE_PROFILE]?.imageUrl,
+        full_body: byType[PhotoType.FULL_BODY]?.imageUrl,
+      },
+      analysis: bodyAnalysis,
+    });
+
+    this.logger.log(`Analysis #${existingCount + 1} saved for user ${userId}`);
 
     return { bodyAnalysis, workoutPlan: savedWorkout };
   }
@@ -177,10 +190,7 @@ export class BodyAnalysisService {
     const latestWorkout = await this.workoutModel
       .findOne({ userId: new Types.ObjectId(userId) })
       .sort({ createdAt: -1 });
-    return {
-      bodyAnalysis: user.bodyAnalysis,
-      workoutPlan: latestWorkout || null,
-    };
+    return { bodyAnalysis: user.bodyAnalysis, workoutPlan: latestWorkout || null };
   }
 
   async getUserPhotos(userId: string): Promise<BodyAnalysisDocument[]> {
@@ -196,5 +206,56 @@ export class BodyAnalysisService {
       this.logger.warn(`Failed to delete from Cloudinary: ${err.message}`);
     }
     await this.bodyAnalysisModel.findByIdAndDelete(analysis._id);
+  }
+
+  async getAnalysisHistory(userId: string): Promise<BodyAnalysisRecordDocument[]> {
+    return this.bodyAnalysisRecordModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .sort({ analysisNumber: 1 });
+  }
+
+  async compareLatestTwo(userId: string): Promise<{
+    score: number;
+    headline: string;
+    summary: string;
+    improvements: string[];
+    stillWorkingOn: string[];
+    firstRecord: BodyAnalysisRecordDocument;
+    latestRecord: BodyAnalysisRecordDocument;
+    daysBetween: number;
+  }> {
+    const records = await this.bodyAnalysisRecordModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .sort({ analysisNumber: 1 });
+
+    if (records.length < 2) {
+      throw new BadRequestException(
+        'You need at least 2 body analyses to compare. Complete a re-analysis first.',
+      );
+    }
+
+    const firstRecord = records[0];
+    const latestRecord = records[records.length - 1];
+
+    const daysBetween = Math.max(
+      1,
+      Math.round(
+        (new Date(latestRecord.createdAt as any).getTime() -
+          new Date(firstRecord.createdAt as any).getTime()) /
+          (1000 * 60 * 60 * 24),
+      ),
+    );
+
+    const user = await this.userModel.findById(userId).select('fitnessGoal');
+    const fitnessGoal = (user as any)?.fitnessGoal || 'general_fitness';
+
+    const comparison = await this.aiService.compareBodyAnalyses(
+      firstRecord.analysis as any,
+      latestRecord.analysis as any,
+      daysBetween,
+      fitnessGoal,
+    );
+
+    return { ...comparison, firstRecord, latestRecord, daysBetween };
   }
 }

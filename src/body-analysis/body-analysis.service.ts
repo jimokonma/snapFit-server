@@ -240,8 +240,8 @@ export class BodyAnalysisService {
     const daysBetween = Math.max(
       1,
       Math.round(
-        (new Date(latestRecord.createdAt as any).getTime() -
-          new Date(firstRecord.createdAt as any).getTime()) /
+        (new Date((latestRecord as any).createdAt).getTime() -
+          new Date((firstRecord as any).createdAt).getTime()) /
           (1000 * 60 * 60 * 24),
       ),
     );

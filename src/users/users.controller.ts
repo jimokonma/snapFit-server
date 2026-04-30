@@ -2,7 +2,7 @@ import { Controller, Get, Put, Body, UseGuards, Request, Param, Delete } from '@
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { User } from '../common/schemas/user.schema';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -21,7 +21,7 @@ export class UsersController {
   @Put('profile')
   @ApiOperation({ summary: 'Update user profile' })
   @ApiResponse({ status: 200, description: 'Profile updated successfully' })
-  async updateProfile(@Request() req, @Body() updateData: Partial<User>) {
+  async updateProfile(@Request() req, @Body() updateData: UpdateProfileDto) {
     return this.usersService.updateProfile(req.user.sub, updateData);
   }
 

@@ -70,6 +70,18 @@ export class MediaService {
     });
   }
 
+  async uploadFromUrl(url: string, folder: string = 'snapfit/exercises'): Promise<string> {
+    const isConfigured = !!this.configService.get<string>('CLOUDINARY_CLOUD_NAME');
+    if (!isConfigured) return url;
+
+    return new Promise((resolve, reject) => {
+      cloudinary.uploader.upload(url, { folder, resource_type: 'image' }, (error, result) => {
+        if (error) reject(error);
+        else resolve(result.secure_url);
+      });
+    });
+  }
+
   async deleteMedia(publicId: string, resourceType: 'image' | 'video' = 'image'): Promise<void> {
     return new Promise((resolve, reject) => {
       cloudinary.uploader.destroy(publicId, { resource_type: resourceType }, (error, result) => {

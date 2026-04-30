@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
 export type PhotoType = 'upper_front' | 'upper_back' | 'side_profile' | 'full_body';
 
@@ -52,16 +53,30 @@ export interface WorkoutPlanResult {
   motivationalNote: string;
 }
 
+export interface HomeVariantResult {
+  name: string;
+  homeInstructions: string;
+  equipmentAlternative: string;
+  sets: number;
+  reps: string;
+}
+
 @Injectable()
 export class AiService {
   private anthropic: Anthropic;
+  private openai: OpenAI;
 
   constructor(private configService: ConfigService) {
-    const apiKey = this.configService.get<string>('ANTHROPIC_API_KEY') || process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error('ANTHROPIC_API_KEY environment variable is not set. Add it to Render\'s environment variables.');
+    const anthropicKey = this.configService.get<string>('ANTHROPIC_API_KEY') || process.env.ANTHROPIC_API_KEY;
+    if (!anthropicKey) {
+      throw new Error('ANTHROPIC_API_KEY environment variable is not set.');
     }
-    this.anthropic = new Anthropic({ apiKey });
+    this.anthropic = new Anthropic({ apiKey: anthropicKey });
+
+    const openaiKey = this.configService.get<string>('OPENAI_API_KEY') || process.env.OPENAI_API_KEY;
+    if (openaiKey) {
+      this.openai = new OpenAI({ apiKey: openaiKey });
+    }
   }
 
   async validatePhoto(
@@ -290,6 +305,193 @@ Respond with ONLY this JSON (all 7 days must be present, Sunday is always rest):
     });
 
     return (response.content[0] as { type: 'text'; text: string }).text;
+  }
+
+  async generateExerciseImage(exerciseName: string, category?: string): Promise<string> {
+    if (!this.openai) {
+      throw new Error('OPENAI_API_KEY is not configured. Add it to generate exercise images.');
+    }
+
+    const prompt = `Professional fitness instructional photograph of an athlete demonstrating perfect form for "${exerciseName}"${category ? ` (${category})` : ''}. Dramatic dark gym setting with red and black color scheme, high contrast lighting, muscular athlete in athletic wear, full body visible showing correct technique. Educational fitness photography, clean background, sharp detail.`;
+
+    const response = await this.openai.images.generate({
+      model: 'dall-e-3',
+      prompt,
+      size: '1024x1024',
+      quality: 'standard',
+      n: 1,
+    });
+
+    return response.data[0].url;
+  }
+
+  async generateExerciseVideo(exerciseName: string): Promise<string> {
+    const replicateKey = this.configService.get<string>('REPLICATE_API_KEY') || process.env.REPLICATE_API_KEY;
+    if (!replicateKey) {
+      throw new Error('REPLICATE_API_KEY is not configured. Add it to your environment variables to enable video generation.');
+    }
+
+    const prompt = `Fitness instructor demonstrating ${exerciseName} in a professional gym setting. Clear slow-motion technique demonstration showing proper form from start to finish. Dark gym atmosphere, dramatic lighting, educational fitness video.`;
+
+    const response = await fetch('https://api.replicate.com/v1/models/minimax/video-01/predictions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${replicateKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'wait',
+      },
+      body: JSON.stringify({ input: { prompt, duration: 5 } }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Replicate API error: ${error}`);
+    }
+
+    const data: any = await response.json();
+
+    if (data.status === 'succeeded' && data.output) {
+      return Array.isArray(data.output) ? data.output[0] : data.output;
+    }
+
+    if (data.urls?.get) {
+      let pollResponse: any;
+      for (let i = 0; i < 30; i++) {
+        await new Promise(r => setTimeout(r, 4000));
+        const poll = await fetch(data.urls.get, {
+          headers: { 'Authorization': `Bearer ${replicateKey}` },
+        });
+        pollResponse = await poll.json();
+        if (pollResponse.status === 'succeeded') {
+          const output = pollResponse.output;
+          return Array.isArray(output) ? output[0] : output;
+        }
+        if (pollResponse.status === 'failed') {
+          throw new Error('Video generation failed');
+        }
+      }
+      throw new Error('Video generation timed out');
+    }
+
+    throw new Error('Unexpected response from Replicate API');
+  }
+
+  async convertExerciseToHome(exercise: { name: string; sets: number; reps: string; notes?: string }): Promise<HomeVariantResult> {
+    const response = await this.anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 600,
+      messages: [
+        {
+          role: 'user',
+          content: `Convert this gym exercise to a home workout version requiring zero equipment:
+
+Exercise: ${exercise.name}
+Sets: ${exercise.sets}
+Reps: ${exercise.reps}
+Notes: ${exercise.notes || 'None'}
+
+Provide a practical home-friendly alternative. Respond with ONLY this JSON:
+{
+  "name": "modified exercise name or same if bodyweight",
+  "homeInstructions": "numbered step-by-step execution for home. 4-6 steps maximum.",
+  "equipmentAlternative": "what household item substitutes gym equipment, or 'No equipment needed'",
+  "sets": ${exercise.sets},
+  "reps": "${exercise.reps}"
+}`,
+        },
+      ],
+    });
+
+    return this.parseJson<HomeVariantResult>(
+      (response.content[0] as { type: 'text'; text: string }).text,
+      {
+        name: exercise.name,
+        homeInstructions: `Perform ${exercise.name} using body weight only. Focus on controlled movement throughout.`,
+        equipmentAlternative: 'No equipment needed',
+        sets: exercise.sets,
+        reps: exercise.reps,
+      },
+    );
+  }
+
+  async generateWorkoutPlanWithOptions(
+    userProfile: {
+      age?: number;
+      height?: number;
+      weight?: number;
+      gender?: string;
+      experienceLevel?: string;
+      workoutHistory?: string;
+      fitnessGoal?: string;
+      daysPerWeek?: number;
+      injuries?: string;
+    },
+    bodyAnalysis: BodyAnalysisResult,
+    options: { homeWorkout?: boolean } = {},
+  ): Promise<WorkoutPlanResult> {
+    const daysPerWeek = userProfile.daysPerWeek || 4;
+    const level = userProfile.experienceLevel || 'beginner';
+    const goal = userProfile.fitnessGoal || 'general_fitness';
+    const homeNote = options.homeWorkout
+      ? '\n\nIMPORTANT: ALL exercises MUST be bodyweight-only. No gym equipment allowed. Use floor, walls, chairs, and body weight only. This is a home workout plan.'
+      : '';
+
+    const response = await this.anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4000,
+      system: `You are an expert personal trainer creating personalized 7-day workout plans. Generate safe, effective, periodized plans tailored to the user's body analysis and goals. Respond only with valid JSON.`,
+      messages: [
+        {
+          role: 'user',
+          content: `Create a personalized 7-day workout plan for this user.${homeNote}
+
+User Profile:
+- Age: ${userProfile.age || 'Not specified'}
+- Height: ${userProfile.height || 'Not specified'} cm
+- Weight: ${userProfile.weight || 'Not specified'} kg
+- Gender: ${userProfile.gender || 'Not specified'}
+- Experience Level: ${level}
+- Workout History: ${userProfile.workoutHistory || 'Limited'}
+- Fitness Goal: ${goal}
+- Days Available Per Week: ${daysPerWeek} (schedule ${daysPerWeek} training days, rest the others)
+- Injuries/Limitations: ${userProfile.injuries || 'None'}
+
+Body Analysis:
+- Overall: ${bodyAnalysis.overallAssessment}
+- Muscle Development: ${bodyAnalysis.bodyComposition.muscleDevelopment}
+- Posture: ${bodyAnalysis.bodyComposition.posture}
+- Priority Areas: ${bodyAnalysis.bodyComposition.priorityAreas.join(', ')}
+- Strengths: ${bodyAnalysis.strengths.join(', ')}
+- Areas for Improvement: ${bodyAnalysis.areasForImprovement.join(', ')}
+
+Respond with ONLY this JSON (all 7 days present, Sunday always rest):
+{
+  "title": "Your Personalized Fitness Plan",
+  "description": "2 sentence description",
+  "days": [
+    {
+      "dayNumber": 1,
+      "dayName": "Monday",
+      "focus": "Upper Body Strength",
+      "isRestDay": false,
+      "estimatedDuration": 60,
+      "exercises": [
+        { "name": "Bench Press", "sets": 4, "reps": "6-8", "restTime": "90s", "notes": "Keep shoulder blades retracted" }
+      ]
+    }
+  ],
+  "nutrition": { "caloricBaseline": "...", "macroTargets": "...", "mealTiming": "..." },
+  "progressTracking": { "weeklyMilestones": [], "strengthBenchmarks": [], "photoRetakeDate": "..." },
+  "motivationalNote": "..."
+}`,
+        },
+      ],
+    });
+
+    return this.parseJson(
+      (response.content[0] as { type: 'text'; text: string }).text,
+      this.getDefaultWorkoutPlan(),
+    );
   }
 
   private getPhotoRequirements(photoType: PhotoType): string {

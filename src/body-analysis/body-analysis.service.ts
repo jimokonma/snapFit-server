@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { BodyAnalysis, BodyAnalysisDocument, PhotoType } from '../common/schemas/body-analysis.schema';
 import { MediaService } from '../media/media.service';
 import { AiService, PhotoValidationResult } from '../ai/ai.service';
 import { User, UserDocument } from '../common/schemas/user.schema';
+import { Workout, WorkoutDocument } from '../common/schemas/workout.schema';
 
 @Injectable()
 export class BodyAnalysisService {
@@ -13,6 +14,7 @@ export class BodyAnalysisService {
   constructor(
     @InjectModel(BodyAnalysis.name) private bodyAnalysisModel: Model<BodyAnalysisDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Workout.name) private workoutModel: Model<WorkoutDocument>,
     private mediaService: MediaService,
     private aiService: AiService,
   ) {}
@@ -135,14 +137,20 @@ export class BodyAnalysisService {
       ),
     ]);
 
+    // Save workout plan to its own collection (source of truth)
+    const savedWorkout = await this.workoutModel.create({
+      userId: new Types.ObjectId(userId),
+      title: workoutPlan.title || '7-Day Starter Plan',
+      description: workoutPlan.description || '',
+      days: workoutPlan.days || [],
+      weekNumber: 1,
+      aiAnalysis: bodyAnalysis.overallAssessment,
+    });
+
     const updatedFields: any = {
       bodyAnalysis: {
         ...bodyAnalysis,
         analyzedAt: new Date(),
-      },
-      workoutPlan: {
-        ...workoutPlan,
-        generatedAt: new Date(),
       },
       bodyAnalysisStatus: 'completed',
       'onboarding.bodyAnalysis': true,
@@ -155,9 +163,9 @@ export class BodyAnalysisService {
 
     await this.userModel.findByIdAndUpdate(userId, updatedFields);
 
-    this.logger.log(`Analysis + workout plan completed for user ${userId}`);
+    this.logger.log(`Analysis completed for user ${userId}; workout saved as ${savedWorkout._id}`);
 
-    return { bodyAnalysis, workoutPlan };
+    return { bodyAnalysis, workoutPlan: savedWorkout };
   }
 
   async getLatestAnalysis(userId: string): Promise<any> {
@@ -166,9 +174,12 @@ export class BodyAnalysisService {
     if (!user.bodyAnalysis) {
       throw new NotFoundException('No analysis found. Please complete body photo analysis first.');
     }
+    const latestWorkout = await this.workoutModel
+      .findOne({ userId: new Types.ObjectId(userId) })
+      .sort({ createdAt: -1 });
     return {
       bodyAnalysis: user.bodyAnalysis,
-      workoutPlan: (user as any).workoutPlan,
+      workoutPlan: latestWorkout || null,
     };
   }
 

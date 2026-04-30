@@ -5,12 +5,14 @@ import { WorkoutsController } from './workouts.controller';
 import { Workout, WorkoutSchema } from '../common/schemas/workout.schema';
 import { AiModule } from '../ai/ai.module';
 import { UsersModule } from '../users/users.module';
+import { MediaModule } from '../media/media.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Workout.name, schema: WorkoutSchema }]),
     AiModule,
     UsersModule,
+    MediaModule,
   ],
   controllers: [WorkoutsController],
   providers: [WorkoutsService],

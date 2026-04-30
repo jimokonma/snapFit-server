@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsArray, IsBoolean, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -115,4 +115,35 @@ export class GenerateExerciseMediaDto {
   @ApiProperty({ example: 'image', enum: ['image', 'video'] })
   @IsString()
   type: 'image' | 'video';
+}
+
+export class GenerateWorkoutOptionsDto {
+  @ApiProperty({ example: false, required: false })
+  @IsOptional()
+  @IsBoolean()
+  homeWorkout?: boolean;
+
+  @ApiProperty({ example: false, required: false })
+  @IsOptional()
+  @IsBoolean()
+  includeImages?: boolean;
+
+  @ApiProperty({ example: false, required: false })
+  @IsOptional()
+  @IsBoolean()
+  includeVideos?: boolean;
+}
+
+export class ExerciseProgressDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  dayNumber: number;
+
+  @ApiProperty({ example: 0 })
+  @IsNumber()
+  exerciseIndex: number;
+
+  @ApiProperty({ example: 'done', enum: ['done', 'skipped', 'pending'] })
+  @IsString()
+  status: 'done' | 'skipped' | 'pending';
 }

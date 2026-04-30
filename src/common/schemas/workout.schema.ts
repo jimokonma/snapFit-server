@@ -19,19 +19,34 @@ export class Exercise {
   name: string;
 
   @Prop()
+  category: string;
+
+  @Prop()
   sets: number;
 
   @Prop()
   reps: number;
 
   @Prop()
-  duration: number; // in seconds for time-based exercises
+  duration: number;
 
   @Prop()
-  restTime: number; // in seconds
+  restTime: number;
 
   @Prop()
-  weight: number; // in kg
+  weight: number;
+
+  @Prop()
+  difficulty: number;
+
+  @Prop()
+  description: string;
+
+  @Prop()
+  instructions: string;
+
+  @Prop()
+  tips: string;
 
   @Prop()
   notes: string;
@@ -41,6 +56,15 @@ export class Exercise {
 
   @Prop()
   instructionVideoUrl: string;
+
+  @Prop()
+  homeVariantInstructions: string;
+
+  @Prop({ enum: ['pending', 'done', 'skipped'], default: 'pending' })
+  status: string;
+
+  @Prop({ enum: ['idle', 'processing', 'ready', 'failed'], default: 'idle' })
+  videoGenerationStatus: string;
 }
 
 @Schema({ timestamps: true })
@@ -53,6 +77,9 @@ export class WorkoutDay {
   @Prop({ required: true })
   dayName: string;
 
+  @Prop()
+  focus: string;
+
   @Prop({ default: false })
   isRestDay: boolean;
 
@@ -63,7 +90,7 @@ export class WorkoutDay {
   notes: string;
 
   @Prop()
-  estimatedDuration: number; // in minutes
+  estimatedDuration: number;
 }
 
 @Schema({ timestamps: true })

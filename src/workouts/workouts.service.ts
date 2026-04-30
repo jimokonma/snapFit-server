@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Workout, WorkoutDocument } from '../common/schemas/workout.schema';
 import { AiService } from '../ai/ai.service';
 import { UsersService } from '../users/users.service';
+import { MediaService } from '../media/media.service';
 import { CreateWorkoutDto } from '../common/dto/workout.dto';
 
 @Injectable()
@@ -12,14 +13,11 @@ export class WorkoutsService {
     @InjectModel(Workout.name) private workoutModel: Model<WorkoutDocument>,
     private aiService: AiService,
     private usersService: UsersService,
+    private mediaService: MediaService,
   ) {}
 
-  async generateWorkoutPlan(userId: string): Promise<Workout> {
+  async generateWorkoutPlan(userId: string, options: { homeWorkout?: boolean; includeImages?: boolean; includeVideos?: boolean } = {}): Promise<Workout> {
     const user = await this.usersService.findById(userId);
-
-    if (!user.bodyPhotos) {
-      throw new ForbiddenException('Please complete onboarding with body photos first');
-    }
 
     const bodyAnalysis = user.bodyAnalysis;
     if (!bodyAnalysis) {
@@ -37,7 +35,9 @@ export class WorkoutsService {
       injuries: user.injuries,
     };
 
-    const workoutData = await this.aiService.generateWorkoutPlan(userProfile, bodyAnalysis);
+    const workoutData = await this.aiService.generateWorkoutPlanWithOptions(userProfile, bodyAnalysis, {
+      homeWorkout: options.homeWorkout,
+    });
 
     const workout = new this.workoutModel({
       userId: new Types.ObjectId(userId),
@@ -77,6 +77,130 @@ export class WorkoutsService {
     return workout.save();
   }
 
+  async saveExerciseProgress(
+    workoutId: string,
+    userId: string,
+    dayNumber: number,
+    exerciseIndex: number,
+    status: 'done' | 'skipped' | 'pending',
+  ): Promise<WorkoutDocument> {
+    const workout = await this.getWorkoutById(workoutId, userId);
+
+    const day = workout.days.find(d => d.dayNumber === dayNumber);
+    if (!day) throw new NotFoundException(`Day ${dayNumber} not found in workout`);
+
+    const exercise = day.exercises[exerciseIndex];
+    if (!exercise) throw new NotFoundException(`Exercise at index ${exerciseIndex} not found`);
+
+    (exercise as any).status = status;
+
+    const allExercises = workout.days.flatMap(d => d.exercises);
+    const done = allExercises.filter(e => (e as any).status === 'done').length;
+    const skipped = allExercises.filter(e => (e as any).status === 'skipped').length;
+    const total = allExercises.length;
+
+    if (total > 0) {
+      workout.completionPercentage = Math.round(((done + skipped) / total) * 100);
+      workout.isCompleted = done + skipped === total;
+    }
+
+    return workout.save();
+  }
+
+  private findExerciseById(workout: WorkoutDocument, exerciseId: string) {
+    for (const day of workout.days) {
+      const exercise = (day.exercises as any).id(exerciseId);
+      if (exercise) return { exercise, day };
+    }
+    return null;
+  }
+
+  async generateExerciseImage(exerciseId: string, userId: string): Promise<WorkoutDocument> {
+    const workouts = await this.workoutModel.find({ userId: new Types.ObjectId(userId) }).sort({ createdAt: -1 }).limit(1);
+    const workout = workouts[0];
+    if (!workout) throw new NotFoundException('No workout found');
+
+    const found = this.findExerciseById(workout, exerciseId);
+    if (!found) throw new NotFoundException('Exercise not found');
+
+    const { exercise } = found;
+    const temporaryUrl = await this.aiService.generateExerciseImage(exercise.name, exercise.category);
+
+    // Upload to Cloudinary for permanent storage; fall back to DALL-E URL if not configured
+    try {
+      exercise.instructionImageUrl = await this.mediaService.uploadFromUrl(temporaryUrl, 'snapfit/exercises');
+    } catch {
+      exercise.instructionImageUrl = temporaryUrl;
+    }
+
+    return workout.save();
+  }
+
+  async generateExerciseVideo(exerciseId: string, userId: string): Promise<WorkoutDocument> {
+    const workouts = await this.workoutModel.find({ userId: new Types.ObjectId(userId) }).sort({ createdAt: -1 }).limit(1);
+    const workout = workouts[0];
+    if (!workout) throw new NotFoundException('No workout found');
+
+    const found = this.findExerciseById(workout, exerciseId);
+    if (!found) throw new NotFoundException('Exercise not found');
+
+    // Mark as processing and return immediately so the request doesn't time out
+    (found.exercise as any).videoGenerationStatus = 'processing';
+    const saved = await workout.save();
+
+    // Run generation in background — does not block the HTTP response
+    this.runVideoGenerationInBackground(workout._id.toString(), exerciseId).catch(err =>
+      console.error('Background video generation error:', err),
+    );
+
+    return saved;
+  }
+
+  private async runVideoGenerationInBackground(workoutId: string, exerciseId: string): Promise<void> {
+    try {
+      const workout = await this.workoutModel.findById(workoutId);
+      if (!workout) return;
+
+      const found = this.findExerciseById(workout, exerciseId);
+      if (!found) return;
+
+      const videoUrl = await this.aiService.generateExerciseVideo(found.exercise.name);
+      (found.exercise as any).instructionVideoUrl = videoUrl;
+      (found.exercise as any).videoGenerationStatus = 'ready';
+      await workout.save();
+    } catch {
+      try {
+        const workout = await this.workoutModel.findById(workoutId);
+        if (!workout) return;
+        const found = this.findExerciseById(workout, exerciseId);
+        if (found) {
+          (found.exercise as any).videoGenerationStatus = 'failed';
+          await workout.save();
+        }
+      } catch { /* ignore secondary failure */ }
+    }
+  }
+
+  async convertExerciseToHome(exerciseId: string, userId: string): Promise<WorkoutDocument> {
+    const workouts = await this.workoutModel.find({ userId: new Types.ObjectId(userId) }).sort({ createdAt: -1 }).limit(1);
+    const workout = workouts[0];
+    if (!workout) throw new NotFoundException('No workout found');
+
+    const found = this.findExerciseById(workout, exerciseId);
+    if (!found) throw new NotFoundException('Exercise not found');
+
+    const { exercise } = found;
+    const homeVariant = await this.aiService.convertExerciseToHome({
+      name: exercise.name,
+      sets: exercise.sets,
+      reps: String(exercise.reps),
+      notes: exercise.notes,
+    });
+
+    exercise.homeVariantInstructions = `${homeVariant.name}\n\n${homeVariant.homeInstructions}\n\nEquipment: ${homeVariant.equipmentAlternative}`;
+    return workout.save();
+  }
+
   async generateExerciseInstructions(workoutId: string, exerciseName: string, type: 'image' | 'video', userId: string): Promise<any> {
     const workout = await this.getWorkoutById(workoutId, userId);
 
@@ -95,18 +219,6 @@ export class WorkoutsService {
     workout.instructionsGenerated += 1;
     await workout.save();
 
-    return {
-      exerciseName,
-      type,
-      instructions,
-    };
-  }
-
-  async generateWorkoutMedia(workoutId: string, type: 'image' | 'video', forceRegenerate: boolean, userId: string): Promise<any> {
-    throw new BadRequestException('Media generation is no longer supported. Use exercise instructions instead.');
-  }
-
-  async generateExerciseMedia(exerciseId: string, type: 'image' | 'video', userId: string): Promise<any> {
-    throw new BadRequestException('Media generation is no longer supported. Use exercise instructions instead.');
+    return { exerciseName, type, instructions };
   }
 }

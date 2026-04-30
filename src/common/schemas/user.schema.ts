@@ -115,6 +115,9 @@ export class User {
   @Prop()
   refreshToken: string;
 
+  @Prop({ default: 0 })
+  tokenVersion: number;
+
   @Prop({ default: Date.now })
   freeTrialStartDate: Date;
 
@@ -139,37 +142,6 @@ export class User {
     analyzedAt: Date;
   };
 
-  @Prop({ type: Object })
-  workoutPlan: {
-    title: string;
-    description: string;
-    days: Array<{
-      dayNumber: number;
-      dayName: string;
-      focus: string;
-      isRestDay: boolean;
-      estimatedDuration: number;
-      exercises: Array<{
-        name: string;
-        sets: number;
-        reps: string;
-        restTime: string;
-        notes?: string;
-      }>;
-    }>;
-    nutrition: {
-      caloricBaseline: string;
-      macroTargets: string;
-      mealTiming: string;
-    };
-    progressTracking: {
-      weeklyMilestones: string[];
-      strengthBenchmarks: string[];
-      photoRetakeDate: string;
-    };
-    motivationalNote: string;
-    generatedAt: Date;
-  };
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

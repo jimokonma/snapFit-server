@@ -77,6 +77,14 @@ export class UsersController {
     return this.usersService.activateUser(userId);
   }
 
+  @Delete('account')
+  @ApiOperation({ summary: 'Delete current user account' })
+  @ApiResponse({ status: 200, description: 'Account deleted successfully' })
+  async deleteOwnAccount(@Request() req) {
+    await this.usersService.deleteUser(req.user.sub);
+    return { message: 'Account deleted successfully' };
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Delete user (Admin only)' })
   @ApiResponse({ status: 200, description: 'User deleted successfully' })

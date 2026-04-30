@@ -191,11 +191,14 @@ export class AuthService {
   }
 
   async logout(userId: string): Promise<void> {
-    await this.userModel.findByIdAndUpdate(userId, { refreshToken: null });
+    await this.userModel.findByIdAndUpdate(userId, {
+      refreshToken: null,
+      $inc: { tokenVersion: 1 },
+    });
   }
 
   private generateTokens(user: UserDocument): { accessToken: string; refreshToken: string } {
-    const payload = { sub: user._id.toString(), email: user.email };
+    const payload = { sub: user._id.toString(), email: user.email, tokenVersion: user.tokenVersion ?? 0 };
 
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, {

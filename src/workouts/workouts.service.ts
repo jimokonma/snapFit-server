@@ -55,6 +55,12 @@ export class WorkoutsService {
     return this.workoutModel.find({ userId: new Types.ObjectId(userId) }).sort({ createdAt: -1 });
   }
 
+  async getCurrentWorkout(userId: string): Promise<WorkoutDocument | null> {
+    return this.workoutModel
+      .findOne({ userId: new Types.ObjectId(userId) })
+      .sort({ createdAt: -1 });
+  }
+
   async getWorkoutById(workoutId: string, userId: string): Promise<WorkoutDocument> {
     const workout = await this.workoutModel.findOne({
       _id: new Types.ObjectId(workoutId),

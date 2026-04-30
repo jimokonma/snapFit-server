@@ -28,6 +28,12 @@ export class WorkoutsController {
     return this.workoutsService.getUserWorkouts(req.user.sub);
   }
 
+  @Get('current')
+  @ApiOperation({ summary: 'Get most recent workout plan' })
+  async getCurrentWorkout(@Request() req) {
+    return this.workoutsService.getCurrentWorkout(req.user.sub);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get specific workout plan' })
   async getWorkoutById(@Request() req, @Param('id') workoutId: string) {

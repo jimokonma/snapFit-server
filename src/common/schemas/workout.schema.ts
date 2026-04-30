@@ -25,13 +25,13 @@ export class Exercise {
   sets: number;
 
   @Prop()
-  reps: number;
+  reps: string;
 
   @Prop()
   duration: number;
 
   @Prop()
-  restTime: number;
+  restTime: string;
 
   @Prop()
   weight: number;

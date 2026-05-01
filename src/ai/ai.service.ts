@@ -224,7 +224,7 @@ Respond with ONLY this JSON:
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 4000,
-      system: `You are an expert personal trainer creating personalized 7-day workout plans. Generate safe, effective, periodized plans tailored to the user's body analysis and goals. Respond only with valid JSON.`,
+      system: `You are an expert personal trainer creating personalized 7-day workout plans. Generate safe, effective, periodized plans tailored to the user's body analysis and goals. For each exercise include a concise 1-2 sentence "description" explaining what the exercise is and its primary benefit. Respond only with valid JSON.`,
       messages: [
         {
           role: 'user',
@@ -266,7 +266,7 @@ Respond with ONLY this JSON (all 7 days must be present, Sunday is always rest):
       "isRestDay": false,
       "estimatedDuration": 60,
       "exercises": [
-        { "name": "Bench Press", "sets": 4, "reps": "6-8", "restTime": "90s", "notes": "Keep shoulder blades retracted" }
+        { "name": "Bench Press", "sets": 4, "reps": "6-8", "restTime": "90s", "description": "A compound push movement targeting chest, shoulders, and triceps through a full press from chest to full arm extension.", "notes": "Keep shoulder blades retracted" }
       ]
     }
   ],
@@ -307,12 +307,32 @@ Respond with ONLY this JSON (all 7 days must be present, Sunday is always rest):
     return (response.content[0] as { type: 'text'; text: string }).text;
   }
 
-  async generateExerciseImage(exerciseName: string, category?: string): Promise<string> {
+  async generateExerciseImage(exerciseName: string, category?: string, instructions?: string): Promise<string> {
     if (!this.openai) {
       throw new Error('OPENAI_API_KEY is not configured. Add it to generate exercise images.');
     }
 
-    const prompt = `Clean instructional fitness illustration showing proper exercise technique for "${exerciseName}"${category ? ` (${category} exercise)` : ''}. A person wearing athletic clothing demonstrating correct form in a modern gym. Educational sports training image, clear and professional, focused on movement mechanics and body positioning.`;
+    // Use Claude to write a precise, exercise-specific DALL-E prompt
+    const promptMsg = await this.anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 200,
+      messages: [{
+        role: 'user',
+        content: `Write a single DALL-E image generation prompt (max 100 words) for a fitness reference illustration of: "${exerciseName}"${category ? ` (${category})` : ''}.
+${instructions ? `Instructions: ${instructions}` : ''}
+
+Requirements:
+- Describe the EXACT starting body position for this specific exercise (limb angles, joint positions, spine alignment, foot placement)
+- Show a fit athlete in proper form wearing athletic clothing
+- Clean white or gym background, educational illustration style
+- Side or 45-degree angle that best reveals the movement mechanics
+- High detail on correct muscle engagement and posture
+- Output ONLY the prompt text, no explanation or preamble`,
+      }],
+    });
+
+    const prompt = (promptMsg.content[0] as any).text?.trim() ||
+      `Clean instructional fitness illustration of "${exerciseName}"${category ? ` (${category})` : ''}. Fit athlete in proper starting position wearing athletic clothing, side-view in a modern gym. Educational, photorealistic, focused on correct form and body alignment.`;
 
     const response = await this.openai.images.generate({
       model: 'dall-e-3',
@@ -470,7 +490,7 @@ Provide a practical home-friendly alternative. Respond with ONLY this JSON:
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 4000,
-      system: `You are an expert personal trainer creating personalized 7-day workout plans. Generate safe, effective, periodized plans tailored to the user's body analysis and goals. Respond only with valid JSON.`,
+      system: `You are an expert personal trainer creating personalized 7-day workout plans. Generate safe, effective, periodized plans tailored to the user's body analysis and goals. For each exercise include a concise 1-2 sentence "description" explaining what the exercise is and its primary benefit. Respond only with valid JSON.`,
       messages: [
         {
           role: 'user',
@@ -507,7 +527,7 @@ Respond with ONLY this JSON (all 7 days present, Sunday always rest):
       "isRestDay": false,
       "estimatedDuration": 60,
       "exercises": [
-        { "name": "Bench Press", "sets": 4, "reps": "6-8", "restTime": "90s", "notes": "Keep shoulder blades retracted" }
+        { "name": "Bench Press", "sets": 4, "reps": "6-8", "restTime": "90s", "description": "A compound push movement targeting chest, shoulders, and triceps through a full press from chest to full arm extension.", "notes": "Keep shoulder blades retracted" }
       ]
     }
   ],

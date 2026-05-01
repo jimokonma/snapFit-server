@@ -16,6 +16,7 @@ import { HealthModule } from './health/health.module';
 import { TestModule } from './test/test.module';
 import { BodyAnalysisModule } from './body-analysis/body-analysis.module';
 import { MediaPipeModule } from './mediapipe/mediapipe.module';
+import { NutritionModule } from './nutrition/nutrition.module';
 import { AuditLoggerService } from './common/services/audit-logger.service';
 import { SecurityInterceptor } from './common/interceptors/security.interceptor';
 import { AuditLog, AuditLogSchema } from './common/schemas/audit-log.schema';
@@ -58,6 +59,7 @@ import { AuditLog, AuditLogSchema } from './common/schemas/audit-log.schema';
     HealthModule,
     BodyAnalysisModule,
     MediaPipeModule,
+    NutritionModule,
   ],
   providers: [
     {

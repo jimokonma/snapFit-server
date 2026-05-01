@@ -30,7 +30,7 @@ export class BodyAnalysisController {
     storage: memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 },
   }))
-  @ApiOperation({ summary: 'Upload a body photo — Claude validates immediately and returns feedback' })
+  @ApiOperation({ summary: 'Upload a body photo — SnapFit validates immediately and returns feedback' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -67,7 +67,7 @@ export class BodyAnalysisController {
   }
 
   @Post('complete')
-  @ApiOperation({ summary: 'Analyze all 4 photos with Claude and generate 7-day workout plan' })
+  @ApiOperation({ summary: 'Analyze all 4 photos with SnapFit and generate 7-day workout plan' })
   @ApiResponse({ status: 200, description: 'Body analysis + workout plan generated successfully' })
   async completeAnalysis(@CurrentUser() user: any) {
     return this.bodyAnalysisService.completeAnalysis(user.sub);

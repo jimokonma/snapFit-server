@@ -141,7 +141,7 @@ export class WorkoutsService {
     if (!found) throw new NotFoundException('Exercise not found');
 
     const { exercise } = found;
-    const temporaryUrl = await this.aiService.generateExerciseImage(exercise.name, exercise.category);
+    const temporaryUrl = await this.aiService.generateExerciseImage(exercise.name, (exercise as any).category, (exercise as any).instructions);
 
     // Upload to Cloudinary for permanent storage; fall back to DALL-E URL if not configured
     try {

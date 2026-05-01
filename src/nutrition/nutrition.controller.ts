@@ -27,8 +27,8 @@ export class NutritionController {
 
   @Post('meals/analyze')
   @ApiOperation({ summary: 'Analyse meal photo with SnapFit Vision (preview, not saved)' })
-  async analyzeMeal(@Body() body: { imageBase64: string; mediaType: string }) {
-    return this.nutritionService.analyzeMealPhoto(body.imageBase64, body.mediaType);
+  async analyzeMeal(@Body() body: { imageBase64: string; mediaType: string; clarifications?: string }) {
+    return this.nutritionService.analyzeMealPhoto(body.imageBase64, body.mediaType, body.clarifications);
   }
 
   // ── Meal Logs ─────────────────────────────────────────────────────────

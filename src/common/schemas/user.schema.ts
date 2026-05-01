@@ -9,6 +9,11 @@ export enum FitnessGoal {
   ENDURANCE = 'endurance',
   TONING = 'toning',
   GENERAL_FITNESS = 'general_fitness',
+  BIGGER_GLUTES = 'bigger_glutes',
+  GET_SHREDDED = 'get_shredded',
+  FLAT_TUMMY = 'flat_tummy',
+  BODY_RECOMPOSITION = 'body_recomposition',
+  TONED_ARMS = 'toned_arms',
 }
 
 export enum ExperienceLevel {

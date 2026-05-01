@@ -23,10 +23,11 @@ const VISION_SYSTEM = `You are a precise nutrition analyst. Given a food photo, 
 Rules:
 - Return JSON only, no prose, no markdown fences.
 - Use USDA reference values. Round calories to integers, macros to 1 decimal.
-- Confidence 0–1. Items below 0.4 go into warnings only.`;
+- Confidence 0–1. Items below 0.4 go into warnings only.
+- If you are uncertain about any item, ingredient, or preparation method that would meaningfully change the nutritional estimate, add clarifyingQuestions. Each question needs: id (short snake_case), type ("boolean" for yes/no or "text" for open answer), question (concise, user-facing). Only ask when it matters for accuracy.`;
 
 const VISION_USER = `Analyze this meal photo. Return JSON in this exact shape:
-{"items":[{"name":string,"quantity":number,"unit":"piece"|"g"|"ml"|"cup"|"tbsp","calories":number,"proteinG":number,"carbsG":number,"fatG":number,"confidence":number}],"totalCalories":number,"totalProteinG":number,"totalCarbsG":number,"totalFatG":number,"warnings":string[]}`;
+{"items":[{"name":string,"quantity":number,"unit":"piece"|"g"|"ml"|"cup"|"tbsp","calories":number,"proteinG":number,"carbsG":number,"fatG":number,"confidence":number}],"totalCalories":number,"totalProteinG":number,"totalCarbsG":number,"totalFatG":number,"warnings":string[],"clarifyingQuestions":[{"id":string,"type":"boolean"|"text","question":string}]}`;
 
 const SUGGESTION_SYSTEM = `You are a culturally-aware nutritionist generating meal suggestions. Tailor to the user's country, workout goal, budget, and dietary restrictions. NEVER violate dietary restrictions or allergies. Return JSON only, no prose.`;
 
@@ -55,20 +56,24 @@ export class NutritionService {
 
   // ── Vision Analysis ───────────────────────────────────────────────────
 
-  async analyzeMealPhoto(imageBase64: string, mediaType: string) {
+  async analyzeMealPhoto(imageBase64: string, mediaType: string, clarifications?: string) {
+    const userContent: any[] = [
+      { type: 'image', source: { type: 'base64', media_type: mediaType as any, data: imageBase64 } },
+      { type: 'text', text: VISION_USER },
+    ];
+
+    if (clarifications) {
+      userContent.push({
+        type: 'text',
+        text: `The user provided these clarifications about the meal:\n${clarifications}\nUse these to improve accuracy. If all uncertainties are resolved, return an empty clarifyingQuestions array.`,
+      });
+    }
+
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1500,
       system: VISION_SYSTEM,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType as any, data: imageBase64 } },
-            { type: 'text', text: VISION_USER },
-          ],
-        },
-      ],
+      messages: [{ role: 'user', content: userContent }],
     });
     const text = response.content.filter((b) => b.type === 'text').map((b: any) => b.text).join('');
     try {

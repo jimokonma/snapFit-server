@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AiService, PhotoType } from './ai.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -16,5 +16,13 @@ export class AiController {
   async generateInstructions(@Body() body: { exerciseName: string }) {
     if (!body.exerciseName) throw new BadRequestException('exerciseName is required');
     return { instructions: await this.aiService.generateExerciseInstructions(body.exerciseName) };
+  }
+
+  @Post('chat')
+  @ApiOperation({ summary: 'Chat with AI fitness coach' })
+  @ApiResponse({ status: 200, description: 'AI response generated' })
+  async chat(@Body() body: { messages: Array<{ role: 'user' | 'assistant'; content: string }> }) {
+    if (!body.messages?.length) throw new BadRequestException('messages are required');
+    return { response: await this.aiService.chat(body.messages) };
   }
 }

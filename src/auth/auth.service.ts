@@ -8,6 +8,7 @@ import { User, UserDocument } from '../common/schemas/user.schema';
 import { RegisterDto, LoginDto, OnboardingDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ResendVerificationDto, GoogleAuthDto, ChangePasswordDto } from '../common/dto/auth.dto';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../common/services/email.service';
+import { decryptField } from '../common/utils/crypto.util';
 import { MediaService } from '../media/media.service';
 // import { AuditLoggerService, AuditEventType } from '../common/services/audit-logger.service';
 import { AiService } from '../ai/ai.service';
@@ -267,12 +268,16 @@ export class AuthService {
     const { email, otp } = verifyEmailDto;
 
     const user = await this.userModel.findOne({
-      email: email,
-      emailVerificationToken: otp,
+      email,
+      isEmailVerified: false,
       emailVerificationExpires: { $gt: new Date() },
     });
 
-    if (!user) {
+    const storedToken = user?.emailVerificationToken
+      ? decryptField(user.emailVerificationToken)
+      : null;
+
+    if (!user || storedToken !== otp) {
       throw new BadRequestException('Invalid or expired verification code');
     }
 
@@ -359,14 +364,16 @@ export class AuthService {
   async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
     const { email, otp, password } = resetPasswordDto;
 
-    // Find user by email AND OTP for security
     const user = await this.userModel.findOne({
-      email: email,
-      passwordResetToken: otp,
+      email,
       passwordResetExpires: { $gt: new Date() },
     });
 
-    if (!user) {
+    const storedToken = user?.passwordResetToken
+      ? decryptField(user.passwordResetToken)
+      : null;
+
+    if (!user || storedToken !== otp) {
       console.error(`❌ Password reset failed: Invalid or expired OTP for email: ${email}`);
       throw new BadRequestException('Invalid or expired reset code. Please request a new code.');
     }

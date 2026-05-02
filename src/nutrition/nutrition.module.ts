@@ -10,6 +10,7 @@ import {
   UserBudget,
   UserBudgetSchema,
 } from '../common/schemas/user-nutrition-preferences.schema';
+import { User, UserSchema } from '../common/schemas/user.schema';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import {
       { name: MealSuggestion.name, schema: MealSuggestionSchema },
       { name: UserNutritionPreferences.name, schema: UserNutritionPreferencesSchema },
       { name: UserBudget.name, schema: UserBudgetSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   controllers: [NutritionController],

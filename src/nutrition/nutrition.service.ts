@@ -18,6 +18,7 @@ import {
   UserBudget,
   UserBudgetDocument,
 } from '../common/schemas/user-nutrition-preferences.schema';
+import { User, UserDocument } from '../common/schemas/user.schema';
 
 const VISION_SYSTEM = `You are a precise nutrition analyst. Given a food photo, identify every distinct food item, estimate quantities in standard units, and return calorie and macro estimates.
 Rules:
@@ -33,10 +34,22 @@ const SUGGESTION_SYSTEM = `You are a culturally-aware nutritionist generating me
 
 function goalToNutritionGoal(fitnessGoal?: string): string {
   switch (fitnessGoal) {
-    case 'muscle_gain': return 'bulking';
-    case 'fat_loss': return 'cutting';
-    case 'maintenance': return 'maintenance';
-    default: return 'maintenance';
+    case 'muscle_gain':
+    case 'bigger_glutes':
+    case 'toned_arms':
+      return 'bulking';
+    case 'fat_loss':
+    case 'get_shredded':
+    case 'flat_tummy':
+      return 'cutting';
+    case 'body_recomposition':
+      return 'recomp';
+    case 'toning':
+    case 'endurance':
+    case 'general_fitness':
+    case 'maintenance':
+    default:
+      return 'maintenance';
   }
 }
 
@@ -49,6 +62,7 @@ export class NutritionService {
     @InjectModel(MealSuggestion.name) private suggestionModel: Model<MealSuggestionDocument>,
     @InjectModel(UserNutritionPreferences.name) private prefsModel: Model<UserNutritionPreferencesDocument>,
     @InjectModel(UserBudget.name) private budgetModel: Model<UserBudgetDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
     private configService: ConfigService,
   ) {
     this.anthropic = new Anthropic({ apiKey: this.configService.get<string>('ANTHROPIC_API_KEY') });
@@ -225,15 +239,18 @@ export class NutritionService {
 
   async generateAndCacheSuggestions(userId: string) {
     const uid = new Types.ObjectId(userId);
-    const prefs = await this.getOrCreatePrefs(userId);
-    const budget = await this.getActiveBudget(userId);
+    const [prefs, budget, user] = await Promise.all([
+      this.getOrCreatePrefs(userId),
+      this.getActiveBudget(userId),
+      this.userModel.findById(userId).select('fitnessGoal').lean(),
+    ]);
 
     const prompt = `Generate 8 meal suggestions for:
 - Country: ${prefs.countryCode}
 - Cuisine preference: ${prefs.cuisinePreference}
-- Workout goal: ${goalToNutritionGoal(undefined)}
+- Workout goal: ${goalToNutritionGoal((user as any)?.fitnessGoal)}
 - Daily calorie target: ${prefs.dailyCalorieTarget ?? 2000} kcal
-- Budget: ${budget ? `${budget.amount} ${budget.currency} (${budget.mode})` : '5000 NGN (daily)'}
+- Budget: ${budget ? `${budget.amount} ${budget.currency} (${budget.mode})` : 'unset — use reasonable local prices'}
 - Dietary restrictions: ${prefs.dietaryRestrictions.join(', ') || 'none'}
 - Allergies: ${prefs.allergies.join(', ') || 'none'}
 

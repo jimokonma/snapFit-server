@@ -186,14 +186,14 @@ export class UsersService {
   }
 
   async getLeaderboard(requestingUserId: string): Promise<{
-    entries: Array<{ rank: number; userId: string; name: string; initials: string; auraPoints: number }>;
+    entries: Array<{ rank: number; userId: string; name: string; initials: string; auraPoints: number; profilePicture?: string }>;
     currentUserRank: number;
     totalAthletes: number;
   }> {
     const [topUsers, currentUser, totalAthletes] = await Promise.all([
       this.userModel
         .find({ onboardingCompleted: true })
-        .select('firstName lastName auraPoints')
+        .select('firstName lastName auraPoints profilePicture')
         .sort({ auraPoints: -1 })
         .limit(20),
       this.userModel.findById(requestingUserId).select('auraPoints'),
@@ -213,6 +213,7 @@ export class UsersService {
       name: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
       initials: `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase(),
       auraPoints: (user as any).auraPoints ?? 0,
+      profilePicture: (user as any).profilePicture ?? undefined,
     }));
 
     return { entries, currentUserRank, totalAthletes: Math.max(totalAthletes, 1) };

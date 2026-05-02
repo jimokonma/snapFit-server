@@ -122,33 +122,24 @@ export class UsersService {
     });
   }
 
-  async incrementFreeTrialInstructions(userId: string): Promise<User> {
-    const user = await this.userModel.findByIdAndUpdate(
-      userId,
-      { $inc: { freeTrialInstructionsUsed: 1 } },
-      { new: true }
-    );
-    if (!user) {
-      throw new NotFoundException('User not found');
+  async generateReferralCode(userId: string): Promise<string> {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    if ((user as any).referralCode) return (user as any).referralCode;
+
+    const base = ((user.firstName?.slice(0, 4) ?? '') + userId.slice(-4))
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '');
+    let code = base;
+    let attempt = 0;
+
+    while (await this.userModel.findOne({ referralCode: code })) {
+      attempt++;
+      code = `${base}${attempt}`;
     }
-    return user;
-  }
 
-  async isFreeTrialActive(userId: string): Promise<boolean> {
-    const user = await this.findById(userId);
-    if (!user.hasUsedFreeTrial) return false;
-
-    const trialDays = parseInt(process.env.FREE_TRIAL_DAYS || '5');
-    const trialEndDate = new Date(user.freeTrialStartDate);
-    trialEndDate.setDate(trialEndDate.getDate() + trialDays);
-
-    return new Date() <= trialEndDate;
-  }
-
-  async getFreeTrialInstructionsRemaining(userId: string): Promise<number> {
-    const user = await this.findById(userId);
-    const freeTrialLimit = parseInt(process.env.FREE_TRIAL_INSTRUCTIONS || '1');
-    return Math.max(0, freeTrialLimit - user.freeTrialInstructionsUsed);
+    await this.userModel.findByIdAndUpdate(userId, { referralCode: code });
+    return code;
   }
 
   async getAllUsers(): Promise<User[]> {

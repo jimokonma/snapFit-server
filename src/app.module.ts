@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { WorkoutsModule } from './workouts/workouts.module';
@@ -17,9 +17,13 @@ import { TestModule } from './test/test.module';
 import { BodyAnalysisModule } from './body-analysis/body-analysis.module';
 import { MediaPipeModule } from './mediapipe/mediapipe.module';
 import { NutritionModule } from './nutrition/nutrition.module';
+import { AffiliatesModule } from './affiliates/affiliates.module';
+import { ReferralsModule } from './referrals/referrals.module';
 import { AuditLoggerService } from './common/services/audit-logger.service';
 import { SecurityInterceptor } from './common/interceptors/security.interceptor';
 import { AuditLog, AuditLogSchema } from './common/schemas/audit-log.schema';
+import { ErrorLogFilter } from './admin/filters/error-log.filter';
+import { ErrorLog, ErrorLogSchema } from './common/schemas/error-log.schema';
 
 @Module({
   imports: [
@@ -45,7 +49,10 @@ import { AuditLog, AuditLogSchema } from './common/schemas/audit-log.schema';
       },
     ]),
     MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/snapfit'),
-    MongooseModule.forFeature([{ name: AuditLog.name, schema: AuditLogSchema }]),
+    MongooseModule.forFeature([
+      { name: AuditLog.name, schema: AuditLogSchema },
+      { name: ErrorLog.name, schema: ErrorLogSchema },
+    ]),
     TestModule,
     AuthModule,
     UsersModule,
@@ -60,6 +67,8 @@ import { AuditLog, AuditLogSchema } from './common/schemas/audit-log.schema';
     BodyAnalysisModule,
     MediaPipeModule,
     NutritionModule,
+    AffiliatesModule,
+    ReferralsModule,
   ],
   providers: [
     {
@@ -69,6 +78,10 @@ import { AuditLog, AuditLogSchema } from './common/schemas/audit-log.schema';
     {
       provide: APP_INTERCEPTOR,
       useClass: SecurityInterceptor,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: ErrorLogFilter,
     },
     AuditLoggerService,
   ],

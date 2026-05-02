@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import {
   MealLog,
   MealLogDocument,
@@ -64,11 +65,17 @@ export class NutritionService {
     @InjectModel(UserBudget.name) private budgetModel: Model<UserBudgetDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private configService: ConfigService,
+    private subscriptionsService: SubscriptionsService,
   ) {
     this.anthropic = new Anthropic({ apiKey: this.configService.get<string>('ANTHROPIC_API_KEY') });
   }
 
   // ── Vision Analysis ───────────────────────────────────────────────────
+
+  async analyzeMealPhotoWithQuota(userId: string, imageBase64: string, mediaType: string, clarifications?: string) {
+    await this.subscriptionsService.checkAndConsumeQuota(userId, 'nutritionScan');
+    return this.analyzeMealPhoto(imageBase64, mediaType, clarifications);
+  }
 
   async analyzeMealPhoto(imageBase64: string, mediaType: string, clarifications?: string) {
     const userContent: any[] = [

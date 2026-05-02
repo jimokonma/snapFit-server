@@ -11,6 +11,7 @@ import {
   UserBudgetSchema,
 } from '../common/schemas/user-nutrition-preferences.schema';
 import { User, UserSchema } from '../common/schemas/user.schema';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { User, UserSchema } from '../common/schemas/user.schema';
       { name: UserBudget.name, schema: UserBudgetSchema },
       { name: User.name, schema: UserSchema },
     ]),
+    SubscriptionsModule,
   ],
   controllers: [NutritionController],
   providers: [NutritionService],

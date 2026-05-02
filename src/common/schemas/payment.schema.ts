@@ -5,7 +5,7 @@ export type PaymentDocument = Payment & Document;
 
 export enum PaymentType {
   SUBSCRIPTION = 'subscription',
-  ADDITIONAL_INSTRUCTIONS = 'additional_instructions',
+  REFERRAL_REWARD = 'referral_reward',
 }
 
 export enum PaymentStatus {
@@ -13,6 +13,12 @@ export enum PaymentStatus {
   SUCCESSFUL = 'successful',
   FAILED = 'failed',
   CANCELLED = 'cancelled',
+}
+
+export enum PaymentProvider {
+  PAYSTACK = 'paystack',
+  PAYPRO_GLOBAL = 'paypro_global',
+  NONE = 'none',
 }
 
 @Schema({ timestamps: true })
@@ -30,16 +36,27 @@ export class Payment {
   status: PaymentStatus;
 
   @Prop({ required: true })
-  amount: number; // in kobo
+  amount: number; // in smallest currency unit (kobo for NGN, cents for USD)
 
   @Prop({ required: true })
-  currency: string;
+  currency: string; // 'NGN' | 'USD' | 'EUR' etc.
 
-  @Prop({ required: true })
+  @Prop({ enum: PaymentProvider, default: PaymentProvider.NONE })
+  provider: PaymentProvider;
+
+  // Paystack fields
+  @Prop()
   paystackReference: string;
 
   @Prop()
   paystackTransactionId: string;
+
+  // PayPro Global fields
+  @Prop()
+  payproReference: string;
+
+  @Prop()
+  payproOrderId: string;
 
   @Prop()
   description: string;
@@ -52,9 +69,6 @@ export class Payment {
 
   @Prop()
   failureReason: string;
-
-  @Prop({ default: 0 })
-  instructionsPurchased: number; // for additional instructions
 }
 
 export const PaymentSchema = SchemaFactory.createForClass(Payment);

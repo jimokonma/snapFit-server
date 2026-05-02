@@ -1,75 +1,75 @@
-import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Headers, RawBodyRequest, Req, UseGuards, Request } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
+import { PayProService } from './paypro.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PaymentType } from '../common/schemas/payment.schema';
+import { SubscriptionTier, BillingCycle } from '../common/schemas/subscription.schema';
 
 @ApiTags('Payments')
 @Controller('payments')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly payProService: PayProService,
+  ) {}
 
-  @Post('create')
-  @ApiOperation({ summary: 'Create payment' })
-  @ApiResponse({ status: 201, description: 'Payment created successfully' })
-  async createPayment(
+  @Post('checkout')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Initiate checkout — returns checkoutUrl for PayPro or reference for Paystack' })
+  async initiateCheckout(
     @Request() req,
     @Body() body: {
-      type: PaymentType;
-      amount: number;
-      currency: string;
-      description: string;
-      subscriptionId?: string;
+      tier: SubscriptionTier.PRO | SubscriptionTier.ELITE;
+      billingCycle: BillingCycle;
+      currency?: string;
     },
   ) {
-    return this.paymentsService.createPayment(
+    return this.paymentsService.initiateCheckout(
       req.user.sub,
-      body.type,
-      body.amount,
-      body.currency,
-      body.description,
-      body.subscriptionId,
+      req.user.email,
+      body.tier,
+      body.billingCycle,
+      body.currency ?? 'NGN',
     );
   }
 
   @Get('history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get user payment history' })
-  @ApiResponse({ status: 200, description: 'Payment history retrieved successfully' })
   async getUserPayments(@Request() req) {
     return this.paymentsService.getUserPayments(req.user.sub);
   }
 
-  @Post('webhook')
-  @ApiOperation({ summary: 'Paystack webhook handler' })
-  @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
-  async handleWebhook(@Body() body: any) {
-    // Handle Paystack webhook
-    const { event, data } = body;
-    
-    if (event === 'charge.success') {
-      await this.paymentsService.updatePaymentStatus(
-        data.reference,
-        'successful' as any,
-        data.id,
-      );
-    } else if (event === 'charge.failed') {
-      await this.paymentsService.updatePaymentStatus(
-        data.reference,
-        'failed' as any,
-        data.id,
-        data.gateway_response,
-      );
-    }
+  // ── Webhooks (no auth — verified by signature) ────────────────────────
 
-    return { status: 'success' };
+  @Post('webhook/paystack')
+  @ApiOperation({ summary: 'Paystack webhook handler' })
+  async handlePaystackWebhook(@Body() body: any) {
+    const { event, data } = body;
+    await this.paymentsService.handlePaystackWebhook(event, data);
+    return { status: 'ok' };
   }
 
-  // Admin endpoints
+  @Post('webhook/paypro')
+  @ApiOperation({ summary: 'PayPro Global webhook handler' })
+  async handlePayProWebhook(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers('x-paypro-signature') signature: string,
+    @Body() body: any,
+  ) {
+    const rawBody = (req as any).rawBody?.toString() ?? JSON.stringify(body);
+    await this.paymentsService.handlePayProWebhook(rawBody, signature ?? '', body);
+    return { status: 'ok' };
+  }
+
+  // ── Admin ─────────────────────────────────────────────────────────────
+
   @Get('all')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all payments (Admin only)' })
-  @ApiResponse({ status: 200, description: 'All payments retrieved successfully' })
   async getAllPayments() {
     return this.paymentsService.getAllPayments();
   }

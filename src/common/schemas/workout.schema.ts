@@ -1,15 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { SubscriptionTier } from './subscription.schema';
 
 export type WorkoutDocument = Workout & Document;
 export type ExerciseDocument = Exercise & Document;
 export type WorkoutDayDocument = WorkoutDay & Document;
-
-export enum SubscriptionPlan {
-  WEEKLY = 'weekly',
-  MONTHLY = 'monthly',
-  YEARLY = 'yearly',
-}
 
 @Schema({ timestamps: true })
 export class Exercise {
@@ -125,11 +120,14 @@ export class Workout {
   @Prop({ default: 0 })
   completionPercentage: number;
 
-  @Prop({ enum: SubscriptionPlan })
-  planType: SubscriptionPlan;
+  @Prop({ enum: SubscriptionTier })
+  planType: SubscriptionTier;
 
   @Prop({ default: 0 })
-  instructionsGenerated: number;
+  imagesGenerated: number;
+
+  @Prop({ default: 0 })
+  videosGenerated: number;
 }
 
 export const ExerciseSchema = SchemaFactory.createForClass(Exercise);

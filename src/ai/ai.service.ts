@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
+import { AiTokenUsage, AiTokenUsageDocument, AiOperation, AiProvider } from '../common/schemas/ai-token-usage.schema';
 
 export type PhotoType = 'upper_front' | 'upper_back' | 'side_profile' | 'full_body';
 
@@ -61,12 +64,22 @@ export interface HomeVariantResult {
   reps: string;
 }
 
+// Anthropic pricing per million tokens (as of 2025)
+const ANTHROPIC_COSTS: Record<string, { input: number; output: number }> = {
+  'claude-sonnet-4-6': { input: 3.0, output: 15.0 },
+  'claude-opus-4-7':   { input: 15.0, output: 75.0 },
+  'claude-haiku-4-5':  { input: 0.8, output: 4.0 },
+};
+
 @Injectable()
 export class AiService {
   private anthropic: Anthropic;
   private openai: OpenAI;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    @InjectModel(AiTokenUsage.name) private tokenUsageModel: Model<AiTokenUsageDocument>,
+  ) {
     const anthropicKey = this.configService.get<string>('ANTHROPIC_API_KEY') || process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) {
       throw new Error('ANTHROPIC_API_KEY environment variable is not set.');
@@ -79,9 +92,38 @@ export class AiService {
     }
   }
 
+  private trackTokens(
+    userId: string,
+    operation: AiOperation,
+    model: string,
+    inputTokens: number,
+    outputTokens: number,
+  ): void {
+    const pricing = ANTHROPIC_COSTS[model] || { input: 3.0, output: 15.0 };
+    const estimatedCostUsd =
+      (inputTokens / 1_000_000) * pricing.input +
+      (outputTokens / 1_000_000) * pricing.output;
+
+    this.tokenUsageModel
+      .create({
+        userId,
+        operation,
+        provider: AiProvider.ANTHROPIC,
+        model,
+        inputTokens,
+        outputTokens,
+        totalTokens: inputTokens + outputTokens,
+        estimatedCostUsd,
+      })
+      .catch(() => {
+        // Silently fail — token tracking must not break AI features
+      });
+  }
+
   async validatePhoto(
     imageUrl: string,
     photoType: PhotoType,
+    userId?: string,
   ): Promise<PhotoValidationResult> {
     const requirements = this.getPhotoRequirements(photoType);
 
@@ -114,6 +156,10 @@ Respond with ONLY this JSON:
       ],
     });
 
+    if (userId) {
+      this.trackTokens(userId, AiOperation.VALIDATE_PHOTO, 'claude-sonnet-4-6', response.usage.input_tokens, response.usage.output_tokens);
+    }
+
     return this.parseJson(
       (response.content[0] as { type: 'text'; text: string }).text,
       { passed: true, issues: [], feedback: 'Photo accepted.' },
@@ -133,6 +179,7 @@ Respond with ONLY this JSON:
       daysPerWeek?: number;
       injuries?: string;
     },
+    userId?: string,
   ): Promise<BodyAnalysisResult> {
     const imageContent = photoUrls.map((url) => ({
       type: 'image' as const,
@@ -187,6 +234,10 @@ Respond with ONLY this JSON:
       ],
     });
 
+    if (userId) {
+      this.trackTokens(userId, AiOperation.ANALYZE_BODY, 'claude-sonnet-4-6', response.usage.input_tokens, response.usage.output_tokens);
+    }
+
     return this.parseJson(
       (response.content[0] as { type: 'text'; text: string }).text,
       {
@@ -216,6 +267,7 @@ Respond with ONLY this JSON:
       injuries?: string;
     },
     bodyAnalysis: BodyAnalysisResult,
+    userId?: string,
   ): Promise<WorkoutPlanResult> {
     const daysPerWeek = userProfile.daysPerWeek || 4;
     const level = userProfile.experienceLevel || 'beginner';
@@ -291,13 +343,17 @@ Respond with ONLY this JSON (all 7 days must be present, Sunday is always rest):
       ],
     });
 
+    if (userId) {
+      this.trackTokens(userId, AiOperation.GENERATE_WORKOUT, 'claude-sonnet-4-6', response.usage.input_tokens, response.usage.output_tokens);
+    }
+
     return this.parseJson(
       (response.content[0] as { type: 'text'; text: string }).text,
       this.getDefaultWorkoutPlan(),
     );
   }
 
-  async generateExerciseInstructions(exerciseName: string): Promise<string> {
+  async generateExerciseInstructions(exerciseName: string, userId?: string): Promise<string> {
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 600,
@@ -309,10 +365,14 @@ Respond with ONLY this JSON (all 7 days must be present, Sunday is always rest):
       ],
     });
 
+    if (userId) {
+      this.trackTokens(userId, AiOperation.GENERATE_EXERCISE_INSTRUCTIONS, 'claude-sonnet-4-6', response.usage.input_tokens, response.usage.output_tokens);
+    }
+
     return (response.content[0] as { type: 'text'; text: string }).text;
   }
 
-  async generateExerciseImage(exerciseName: string, category?: string, instructions?: string): Promise<string> {
+  async generateExerciseImage(exerciseName: string, category?: string, instructions?: string, userId?: string): Promise<string> {
     if (!this.openai) {
       throw new Error('OPENAI_API_KEY is not configured. Add it to generate exercise images.');
     }
@@ -338,6 +398,10 @@ Requirements:
       }],
     });
 
+    if (userId) {
+      this.trackTokens(userId, AiOperation.GENERATE_EXERCISE_IMAGE_PROMPT, 'claude-sonnet-4-6', promptMsg.usage.input_tokens, promptMsg.usage.output_tokens);
+    }
+
     const prompt = (promptMsg.content[0] as any).text?.trim() ||
       `Split-panel instructional fitness illustration of "${exerciseName}"${category ? ` (${category})` : ''}. Two panels side by side: left panel labeled "START" showing athlete in starting position, right panel labeled "END" showing athlete at peak contraction. Fit athlete in athletic clothing, side-view, clean white background. Educational, photorealistic, focused on correct form.`;
 
@@ -361,7 +425,7 @@ Requirements:
     instructions?: string;
     tips?: string;
     notes?: string;
-  }): Promise<string> {
+  }, userId?: string): Promise<string> {
     const replicateKey = this.configService.get<string>('REPLICATE_API_KEY') || process.env.REPLICATE_API_KEY;
     if (!replicateKey) {
       throw new Error('REPLICATE_API_KEY is not configured. Add it to your environment variables to enable video generation.');
@@ -387,6 +451,10 @@ Requirements:
 - Output ONLY the prompt text, no explanation`,
       }],
     });
+
+    if (userId) {
+      this.trackTokens(userId, AiOperation.GENERATE_EXERCISE_VIDEO_PROMPT, 'claude-sonnet-4-6', promptMsg.usage.input_tokens, promptMsg.usage.output_tokens);
+    }
 
     const prompt = (promptMsg.content[0] as any).text?.trim() ||
       `Fit male athlete performing ${exercise.name} in a dark professional gym. Side-view camera. Slow motion showing complete movement from starting position through full range of motion and back to start. 4K cinematic lighting, educational fitness demonstration.`;
@@ -434,7 +502,7 @@ Requirements:
     throw new Error('Unexpected response from Replicate API');
   }
 
-  async convertExerciseToHome(exercise: { name: string; sets: number; reps: string; notes?: string }): Promise<HomeVariantResult> {
+  async convertExerciseToHome(exercise: { name: string; sets: number; reps: string; notes?: string }, userId?: string): Promise<HomeVariantResult> {
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 600,
@@ -459,6 +527,10 @@ Provide a practical home-friendly alternative. Respond with ONLY this JSON:
         },
       ],
     });
+
+    if (userId) {
+      this.trackTokens(userId, AiOperation.CONVERT_TO_HOME, 'claude-sonnet-4-6', response.usage.input_tokens, response.usage.output_tokens);
+    }
 
     return this.parseJson<HomeVariantResult>(
       (response.content[0] as { type: 'text'; text: string }).text,
@@ -486,6 +558,7 @@ Provide a practical home-friendly alternative. Respond with ONLY this JSON:
     },
     bodyAnalysis: BodyAnalysisResult,
     options: { homeWorkout?: boolean; exerciseFocus?: string } = {},
+    userId?: string,
   ): Promise<WorkoutPlanResult> {
     const daysPerWeek = userProfile.daysPerWeek || 4;
     const level = userProfile.experienceLevel || 'beginner';
@@ -555,6 +628,10 @@ Respond with ONLY this JSON (all 7 days present, Sunday always rest):
         },
       ],
     });
+
+    if (userId) {
+      this.trackTokens(userId, AiOperation.GENERATE_WORKOUT_WITH_OPTIONS, 'claude-sonnet-4-6', response.usage.input_tokens, response.usage.output_tokens);
+    }
 
     return this.parseJson(
       (response.content[0] as { type: 'text'; text: string }).text,
@@ -669,6 +746,7 @@ REJECT if: feet are cut off, body is twisted, or significant parts of the body a
   async chat(
     messages: Array<{ role: 'user' | 'assistant'; content: string }>,
     userContext?: string,
+    userId?: string,
   ): Promise<string> {
     const userSection = userContext
       ? `\n\nYou are coaching this specific user:\n${userContext}\n\nAlways address them by their first name. Tailor every response to their profile — reference their goal, stats, and body analysis where relevant.`
@@ -683,6 +761,10 @@ If asked anything unrelated to fitness or exercise, politely decline and redirec
       messages,
     });
 
+    if (userId) {
+      this.trackTokens(userId, AiOperation.CHAT, 'claude-sonnet-4-6', response.usage.input_tokens, response.usage.output_tokens);
+    }
+
     const content = response.content[0];
     if (content.type === 'text') return content.text;
     throw new Error('Unexpected response type from AI');
@@ -693,6 +775,7 @@ If asked anything unrelated to fitness or exercise, politely decline and redirec
     latestAnalysis: BodyAnalysisResult,
     daysBetween: number,
     fitnessGoal: string,
+    userId?: string,
   ): Promise<{
     score: number;
     headline: string;
@@ -734,6 +817,10 @@ Rate progress and provide a comparison. Respond ONLY with this JSON:
         },
       ],
     });
+
+    if (userId) {
+      this.trackTokens(userId, AiOperation.COMPARE_ANALYSES, 'claude-sonnet-4-6', response.usage.input_tokens, response.usage.output_tokens);
+    }
 
     return this.parseJson(
       (response.content[0] as { type: 'text'; text: string }).text,

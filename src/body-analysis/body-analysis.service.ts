@@ -7,6 +7,7 @@ import { MediaService } from '../media/media.service';
 import { AiService, PhotoValidationResult } from '../ai/ai.service';
 import { User, UserDocument } from '../common/schemas/user.schema';
 import { Workout, WorkoutDocument } from '../common/schemas/workout.schema';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 @Injectable()
 export class BodyAnalysisService {
@@ -19,6 +20,7 @@ export class BodyAnalysisService {
     @InjectModel(Workout.name) private workoutModel: Model<WorkoutDocument>,
     private mediaService: MediaService,
     private aiService: AiService,
+    private subscriptionsService: SubscriptionsService,
   ) {}
 
   /**
@@ -77,6 +79,8 @@ export class BodyAnalysisService {
    * Saves a BodyAnalysisRecord to the history collection for comparison later.
    */
   async completeAnalysis(userId: string): Promise<any> {
+    await this.subscriptionsService.checkAndConsumeQuota(userId, 'bodyAnalysis');
+
     const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('User not found');
 

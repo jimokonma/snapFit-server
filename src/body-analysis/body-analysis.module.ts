@@ -8,6 +8,7 @@ import { User, UserSchema } from '../common/schemas/user.schema';
 import { Workout, WorkoutSchema } from '../common/schemas/workout.schema';
 import { MediaModule } from '../media/media.module';
 import { AiModule } from '../ai/ai.module';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AiModule } from '../ai/ai.module';
     ]),
     MediaModule,
     AiModule,
+    SubscriptionsModule,
   ],
   controllers: [BodyAnalysisController],
   providers: [BodyAnalysisService],

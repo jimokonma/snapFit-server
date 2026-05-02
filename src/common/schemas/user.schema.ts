@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { SubscriptionTier } from './subscription.schema';
 
 export type UserDocument = User & Document;
 
@@ -66,10 +67,10 @@ export class User {
   age: number;
 
   @Prop()
-  height: number; // in cm
+  height: number; // cm
 
   @Prop()
-  weight: number; // in kg
+  weight: number; // kg
 
   @Prop({ enum: FitnessGoal })
   fitnessGoal: FitnessGoal;
@@ -97,7 +98,6 @@ export class User {
   @Prop({ default: false })
   onboardingCompleted: boolean;
 
-  // Tracks the status of the MediaPipe/AI analysis flow that gates onboarding completion
   @Prop({ enum: ['pending', 'completed', 'failed'], default: 'pending' })
   bodyAnalysisStatus: 'pending' | 'completed' | 'failed';
 
@@ -123,16 +123,6 @@ export class User {
   @Prop({ default: 0 })
   tokenVersion: number;
 
-  @Prop({ default: Date.now })
-  freeTrialStartDate: Date;
-
-  @Prop({ default: false })
-  hasUsedFreeTrial: boolean;
-
-  @Prop({ default: 0 })
-  freeTrialInstructionsUsed: number;
-
-  // AI Body Analysis + Workout Plan (generated after photo analysis)
   @Prop({ type: Object })
   bodyAnalysis: {
     overallAssessment: string;
@@ -153,6 +143,28 @@ export class User {
   @Prop()
   profilePicture: string;
 
+  @Prop({ enum: ['user', 'admin'], default: 'user' })
+  role: 'user' | 'admin';
+
+  @Prop({ default: false })
+  isBanned: boolean;
+
+  @Prop()
+  banReason: string;
+
+  @Prop()
+  pushToken: string;
+
+  // ── Tier ──────────────────────────────────────────────────────────────
+  @Prop({ enum: SubscriptionTier, default: SubscriptionTier.FREE })
+  tier: SubscriptionTier;
+
+  // ── Referral System ───────────────────────────────────────────────────
+  @Prop({ unique: true, sparse: true })
+  referralCode: string; // e.g. "JIMOFITS" — auto-generated on registration
+
+  @Prop()
+  referredBy: string; // referralCode used at signup
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

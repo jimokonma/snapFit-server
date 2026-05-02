@@ -132,6 +132,11 @@ export class GenerateWorkoutOptionsDto {
   @IsOptional()
   @IsBoolean()
   includeVideos?: boolean;
+
+  @ApiProperty({ example: 'fat_loss', required: false })
+  @IsOptional()
+  @IsString()
+  exerciseFocus?: string;
 }
 
 export class ExerciseProgressDto {

@@ -16,7 +16,7 @@ export class WorkoutsService {
     private mediaService: MediaService,
   ) {}
 
-  async generateWorkoutPlan(userId: string, options: { homeWorkout?: boolean; includeImages?: boolean; includeVideos?: boolean } = {}): Promise<Workout> {
+  async generateWorkoutPlan(userId: string, options: { homeWorkout?: boolean; includeImages?: boolean; includeVideos?: boolean; exerciseFocus?: string } = {}): Promise<Workout> {
     const user = await this.usersService.findById(userId);
 
     const bodyAnalysis = user.bodyAnalysis;
@@ -37,6 +37,7 @@ export class WorkoutsService {
 
     const workoutData = await this.aiService.generateWorkoutPlanWithOptions(userProfile, bodyAnalysis, {
       homeWorkout: options.homeWorkout,
+      exerciseFocus: options.exerciseFocus,
     });
 
     const workout = new this.workoutModel({

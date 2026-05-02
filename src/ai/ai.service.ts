@@ -480,14 +480,19 @@ Provide a practical home-friendly alternative. Respond with ONLY this JSON:
       injuries?: string;
     },
     bodyAnalysis: BodyAnalysisResult,
-    options: { homeWorkout?: boolean } = {},
+    options: { homeWorkout?: boolean; exerciseFocus?: string } = {},
   ): Promise<WorkoutPlanResult> {
     const daysPerWeek = userProfile.daysPerWeek || 4;
     const level = userProfile.experienceLevel || 'beginner';
-    const goal = userProfile.fitnessGoal || 'general_fitness';
+    const profileGoal = userProfile.fitnessGoal || 'general_fitness';
+    const goal = options.exerciseFocus || profileGoal;
     const homeNote = options.homeWorkout
       ? '\n\nIMPORTANT: ALL exercises MUST be bodyweight-only. No gym equipment allowed. Use floor, walls, chairs, and body weight only. This is a home workout plan.'
       : '';
+    const focusNote =
+      options.exerciseFocus && options.exerciseFocus !== profileGoal
+        ? `\n\nEXERCISE FOCUS OVERRIDE: The user has requested to specifically focus on "${options.exerciseFocus}". Design the entire plan around this focus. If "${options.exerciseFocus}" is not a recognizable fitness goal or workout style, ignore the override and fall back to their profile goal: ${profileGoal}.`
+        : '';
 
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-6',
@@ -496,7 +501,7 @@ Provide a practical home-friendly alternative. Respond with ONLY this JSON:
       messages: [
         {
           role: 'user',
-          content: `Create a personalized 7-day workout plan for this user.${homeNote}
+          content: `Create a personalized 7-day workout plan for this user.${homeNote}${focusNote}
 
 User Profile:
 - Age: ${userProfile.age || 'Not specified'}

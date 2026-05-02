@@ -150,6 +150,9 @@ export class User {
   @Prop({ default: 0, min: 0 })
   auraPoints: number;
 
+  @Prop()
+  profilePicture: string;
+
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

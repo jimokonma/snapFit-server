@@ -312,32 +312,34 @@ Respond with ONLY this JSON (all 7 days must be present, Sunday is always rest):
       throw new Error('OPENAI_API_KEY is not configured. Add it to generate exercise images.');
     }
 
-    // Use Claude to write a precise, exercise-specific DALL-E prompt
+    // Use Claude to write a split-panel DALL-E prompt showing start and end positions
     const promptMsg = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 200,
+      max_tokens: 250,
       messages: [{
         role: 'user',
-        content: `Write a single DALL-E image generation prompt (max 100 words) for a fitness reference illustration of: "${exerciseName}"${category ? ` (${category})` : ''}.
+        content: `Write a single DALL-E image generation prompt (max 130 words) for a split-panel fitness reference illustration of: "${exerciseName}"${category ? ` (${category})` : ''}.
 ${instructions ? `Instructions: ${instructions}` : ''}
 
 Requirements:
-- Describe the EXACT starting body position for this specific exercise (limb angles, joint positions, spine alignment, foot placement)
-- Show a fit athlete in proper form wearing athletic clothing
-- Clean white or gym background, educational illustration style
+- Two-panel side-by-side layout: left panel labeled "START", right panel labeled "END"
+- LEFT PANEL: describe the EXACT starting body position (limb angles, joint positions, spine alignment, foot placement)
+- RIGHT PANEL: describe the EXACT ending/peak-contraction body position for the same exercise
+- Fit athlete in proper form wearing athletic clothing, consistent appearance across both panels
+- Clean white background, bold instructional labels "START" and "END" on each panel
 - Side or 45-degree angle that best reveals the movement mechanics
-- High detail on correct muscle engagement and posture
+- High detail on correct muscle engagement and posture in each phase
 - Output ONLY the prompt text, no explanation or preamble`,
       }],
     });
 
     const prompt = (promptMsg.content[0] as any).text?.trim() ||
-      `Clean instructional fitness illustration of "${exerciseName}"${category ? ` (${category})` : ''}. Fit athlete in proper starting position wearing athletic clothing, side-view in a modern gym. Educational, photorealistic, focused on correct form and body alignment.`;
+      `Split-panel instructional fitness illustration of "${exerciseName}"${category ? ` (${category})` : ''}. Two panels side by side: left panel labeled "START" showing athlete in starting position, right panel labeled "END" showing athlete at peak contraction. Fit athlete in athletic clothing, side-view, clean white background. Educational, photorealistic, focused on correct form.`;
 
     const response = await this.openai.images.generate({
       model: 'dall-e-3',
       prompt,
-      size: '1024x1024',
+      size: '1792x1024',
       quality: 'standard',
       n: 1,
     });

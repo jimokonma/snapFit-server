@@ -1,13 +1,35 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '../common/schemas/user.schema';
+import { Workout } from '../common/schemas/workout.schema';
+import { Progress } from '../common/schemas/progress.schema';
+import { BodyAnalysis } from '../common/schemas/body-analysis.schema';
+import { BodyAnalysisRecord } from '../common/schemas/body-analysis-record.schema';
+import { MealLog } from '../common/schemas/meal-log.schema';
+import { ChatMessage } from '../common/schemas/chat-message.schema';
+import { AiTokenUsage } from '../common/schemas/ai-token-usage.schema';
+import { Subscription } from '../common/schemas/subscription.schema';
+import { Payment } from '../common/schemas/payment.schema';
+import { ComprehensiveAnalysis } from '../common/schemas/comprehensive-analysis.schema';
+import { UserNutritionPreferences } from '../common/schemas/user-nutrition-preferences.schema';
 import { MediaService } from '../media/media.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Workout.name) private workoutModel: Model<any>,
+    @InjectModel(Progress.name) private progressModel: Model<any>,
+    @InjectModel(BodyAnalysis.name) private bodyAnalysisModel: Model<any>,
+    @InjectModel(BodyAnalysisRecord.name) private bodyAnalysisRecordModel: Model<any>,
+    @InjectModel(MealLog.name) private mealLogModel: Model<any>,
+    @InjectModel(ChatMessage.name) private chatMessageModel: Model<any>,
+    @InjectModel(AiTokenUsage.name) private aiTokenUsageModel: Model<any>,
+    @InjectModel(Subscription.name) private subscriptionModel: Model<any>,
+    @InjectModel(Payment.name) private paymentModel: Model<any>,
+    @InjectModel(ComprehensiveAnalysis.name) private comprehensiveAnalysisModel: Model<any>,
+    @InjectModel(UserNutritionPreferences.name) private nutritionPrefsModel: Model<any>,
     private mediaService: MediaService,
   ) {}
 
@@ -122,6 +144,15 @@ export class UsersService {
     });
   }
 
+  async deleteProfilePicture(userId: string): Promise<void> {
+    const user = await this.userModel.findById(userId).select('profilePicture');
+    if (user?.profilePicture) {
+      const publicId = this.extractCloudinaryPublicId(user.profilePicture);
+      if (publicId) this.mediaService.deleteMedia(publicId).catch(() => {});
+    }
+    await this.userModel.findByIdAndUpdate(userId, { $unset: { profilePicture: 1 } });
+  }
+
   async generateReferralCode(userId: string): Promise<string> {
     const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('User not found');
@@ -178,6 +209,20 @@ export class UsersService {
     if (!result) {
       throw new NotFoundException('User not found');
     }
+    const uid = new Types.ObjectId(userId);
+    await Promise.all([
+      this.workoutModel.deleteMany({ userId: uid }),
+      this.progressModel.deleteMany({ userId: uid }),
+      this.bodyAnalysisModel.deleteMany({ userId: uid }),
+      this.bodyAnalysisRecordModel.deleteMany({ userId: uid }),
+      this.mealLogModel.deleteMany({ userId: uid }),
+      this.chatMessageModel.deleteMany({ userId: uid }),
+      this.aiTokenUsageModel.deleteMany({ userId }),
+      this.subscriptionModel.deleteMany({ userId: uid }),
+      this.paymentModel.deleteMany({ userId: uid }),
+      this.comprehensiveAnalysisModel.deleteMany({ userId: uid }),
+      this.nutritionPrefsModel.deleteMany({ userId: uid }),
+    ]);
   }
 
   async getBodyAnalysis(userId: string): Promise<any> {

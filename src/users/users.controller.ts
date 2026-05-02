@@ -77,6 +77,14 @@ export class UsersController {
     return this.usersService.activateUser(userId);
   }
 
+  @Delete('profile-picture')
+  @ApiOperation({ summary: 'Delete current user profile picture' })
+  @ApiResponse({ status: 200, description: 'Profile picture deleted successfully' })
+  async deleteProfilePicture(@Request() req) {
+    await this.usersService.deleteProfilePicture(req.user.sub);
+    return { message: 'Profile picture deleted successfully' };
+  }
+
   @Delete('account')
   @ApiOperation({ summary: 'Delete current user account' })
   @ApiResponse({ status: 200, description: 'Account deleted successfully' })

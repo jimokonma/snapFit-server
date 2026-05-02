@@ -2,11 +2,28 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Progress, ProgressDocument } from '../common/schemas/progress.schema';
+import { MediaService } from '../media/media.service';
+
 @Injectable()
 export class ProgressService {
   constructor(
     @InjectModel(Progress.name) private progressModel: Model<ProgressDocument>,
+    private mediaService: MediaService,
   ) {}
+
+  private extractCloudinaryPublicId(url: string): string | null {
+    try {
+      const uploadIdx = url.indexOf('/upload/');
+      if (uploadIdx === -1) return null;
+      let path = url.substring(uploadIdx + 8);
+      const snapfitIdx = path.indexOf('snapfit/');
+      if (snapfitIdx !== -1) path = path.substring(snapfitIdx);
+      const dotIdx = path.lastIndexOf('.');
+      return dotIdx !== -1 ? path.substring(0, dotIdx) : path;
+    } catch {
+      return null;
+    }
+  }
 
   async createProgress(
     userId: string,
@@ -82,6 +99,11 @@ export class ProgressService {
 
     if (!result) {
       throw new NotFoundException('Progress not found');
+    }
+
+    if (result.photoUrl) {
+      const publicId = this.extractCloudinaryPublicId(result.photoUrl);
+      if (publicId) this.mediaService.deleteMedia(publicId).catch(() => {});
     }
   }
 }

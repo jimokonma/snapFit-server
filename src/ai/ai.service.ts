@@ -223,8 +223,8 @@ Respond with ONLY this JSON:
 
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4000,
-      system: `You are an expert personal trainer creating personalized 7-day workout plans. Generate safe, effective, periodized plans tailored to the user's body analysis and goals. For each exercise include a concise 1-2 sentence "description" explaining what the exercise is and its primary benefit. Respond only with valid JSON.`,
+      max_tokens: 6000,
+      system: `You are an expert personal trainer creating personalized 7-day workout plans. Generate safe, effective, periodized plans tailored to the user's body analysis and goals. Each training day MUST include at least 4 exercises. For each exercise include a concise 1-2 sentence "description" explaining what the exercise is and its primary benefit. Respond only with valid JSON.`,
       messages: [
         {
           role: 'user',
@@ -254,6 +254,8 @@ Intensity guidelines by level:
 - Intermediate: compound + isolation mix, moderate reps (8-12), rest 60-90s, 4-5 training days
 - Advanced: high specificity, periodized intensity, 3-12 reps, rest 45-75s, 5-6 training days
 
+IMPORTANT: Each training day must have at least 4 exercises (rest days have none).
+
 Respond with ONLY this JSON (all 7 days must be present, Sunday is always rest):
 {
   "title": "Your Personalized Fitness Plan",
@@ -266,7 +268,10 @@ Respond with ONLY this JSON (all 7 days must be present, Sunday is always rest):
       "isRestDay": false,
       "estimatedDuration": 60,
       "exercises": [
-        { "name": "Bench Press", "sets": 4, "reps": "6-8", "restTime": "90s", "description": "A compound push movement targeting chest, shoulders, and triceps through a full press from chest to full arm extension.", "notes": "Keep shoulder blades retracted" }
+        { "name": "Bench Press", "sets": 4, "reps": "6-8", "restTime": "90s", "description": "A compound push movement targeting chest, shoulders, and triceps through a full press from chest to full arm extension.", "notes": "Keep shoulder blades retracted" },
+        { "name": "Bent-Over Row", "sets": 4, "reps": "6-8", "restTime": "90s", "description": "A compound pull movement that builds thickness across the upper back, lats, and rear delts.", "notes": "Maintain neutral spine throughout" },
+        { "name": "Overhead Press", "sets": 3, "reps": "8-10", "restTime": "75s", "description": "A vertical pressing exercise that develops shoulder strength and stability while engaging the core.", "notes": "Brace core, avoid excessive arch" },
+        { "name": "Tricep Dips", "sets": 3, "reps": "10-12", "restTime": "60s", "description": "An isolation movement that targets the triceps and helps build arm definition and pressing power.", "notes": "Keep elbows tracking back, not flaring out" }
       ]
     }
   ],
@@ -496,8 +501,8 @@ Provide a practical home-friendly alternative. Respond with ONLY this JSON:
 
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4000,
-      system: `You are an expert personal trainer creating personalized 7-day workout plans. Generate safe, effective, periodized plans tailored to the user's body analysis and goals. For each exercise include a concise 1-2 sentence "description" explaining what the exercise is and its primary benefit. Respond only with valid JSON.`,
+      max_tokens: 6000,
+      system: `You are an expert personal trainer creating personalized 7-day workout plans. Generate safe, effective, periodized plans tailored to the user's body analysis and goals. Each training day MUST include at least 4 exercises. For each exercise include a concise 1-2 sentence "description" explaining what the exercise is and its primary benefit. Respond only with valid JSON.`,
       messages: [
         {
           role: 'user',
@@ -522,6 +527,8 @@ Body Analysis:
 - Strengths: ${bodyAnalysis.strengths.join(', ')}
 - Areas for Improvement: ${bodyAnalysis.areasForImprovement.join(', ')}
 
+IMPORTANT: Each training day must have at least 4 exercises (rest days have none).
+
 Respond with ONLY this JSON (all 7 days present, Sunday always rest):
 {
   "title": "Your Personalized Fitness Plan",
@@ -534,7 +541,10 @@ Respond with ONLY this JSON (all 7 days present, Sunday always rest):
       "isRestDay": false,
       "estimatedDuration": 60,
       "exercises": [
-        { "name": "Bench Press", "sets": 4, "reps": "6-8", "restTime": "90s", "description": "A compound push movement targeting chest, shoulders, and triceps through a full press from chest to full arm extension.", "notes": "Keep shoulder blades retracted" }
+        { "name": "Bench Press", "sets": 4, "reps": "6-8", "restTime": "90s", "description": "A compound push movement targeting chest, shoulders, and triceps through a full press from chest to full arm extension.", "notes": "Keep shoulder blades retracted" },
+        { "name": "Bent-Over Row", "sets": 4, "reps": "6-8", "restTime": "90s", "description": "A compound pull movement that builds thickness across the upper back, lats, and rear delts.", "notes": "Maintain neutral spine throughout" },
+        { "name": "Overhead Press", "sets": 3, "reps": "8-10", "restTime": "75s", "description": "A vertical pressing exercise that develops shoulder strength and stability while engaging the core.", "notes": "Brace core, avoid excessive arch" },
+        { "name": "Tricep Dips", "sets": 3, "reps": "10-12", "restTime": "60s", "description": "An isolation movement that targets the triceps and helps build arm definition and pressing power.", "notes": "Keep elbows tracking back, not flaring out" }
       ]
     }
   ],

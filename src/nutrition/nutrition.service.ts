@@ -20,6 +20,18 @@ import {
   UserBudgetDocument,
 } from '../common/schemas/user-nutrition-preferences.schema';
 import { User, UserDocument } from '../common/schemas/user.schema';
+import {
+  AiTokenUsage,
+  AiTokenUsageDocument,
+  AiOperation,
+  AiProvider,
+} from '../common/schemas/ai-token-usage.schema';
+
+const ANTHROPIC_COSTS: Record<string, { input: number; output: number }> = {
+  'claude-sonnet-4-6': { input: 3.0, output: 15.0 },
+  'claude-opus-4-7':   { input: 15.0, output: 75.0 },
+  'claude-haiku-4-5':  { input: 0.8, output: 4.0 },
+};
 
 const VISION_SYSTEM = `You are a precise nutrition analyst. Given a food photo, identify every distinct food item, estimate quantities in standard units, and return calorie and macro estimates.
 Rules:
@@ -64,20 +76,49 @@ export class NutritionService {
     @InjectModel(UserNutritionPreferences.name) private prefsModel: Model<UserNutritionPreferencesDocument>,
     @InjectModel(UserBudget.name) private budgetModel: Model<UserBudgetDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(AiTokenUsage.name) private tokenUsageModel: Model<AiTokenUsageDocument>,
     private configService: ConfigService,
     private subscriptionsService: SubscriptionsService,
   ) {
     this.anthropic = new Anthropic({ apiKey: this.configService.get<string>('ANTHROPIC_API_KEY') });
   }
 
+  private trackTokens(
+    userId: string,
+    operation: AiOperation,
+    model: string,
+    inputTokens: number,
+    outputTokens: number,
+  ): void {
+    const pricing = ANTHROPIC_COSTS[model] || { input: 3.0, output: 15.0 };
+    const estimatedCostUsd =
+      (inputTokens / 1_000_000) * pricing.input +
+      (outputTokens / 1_000_000) * pricing.output;
+
+    this.tokenUsageModel
+      .create({
+        userId,
+        operation,
+        provider: AiProvider.ANTHROPIC,
+        model,
+        inputTokens,
+        outputTokens,
+        totalTokens: inputTokens + outputTokens,
+        estimatedCostUsd,
+      })
+      .catch(() => {
+        // Silently fail — token tracking must not break AI features
+      });
+  }
+
   // ── Vision Analysis ───────────────────────────────────────────────────
 
   async analyzeMealPhotoWithQuota(userId: string, imageBase64: string, mediaType: string, clarifications?: string) {
     await this.subscriptionsService.checkAndConsumeQuota(userId, 'nutritionScan');
-    return this.analyzeMealPhoto(imageBase64, mediaType, clarifications);
+    return this.analyzeMealPhoto(imageBase64, mediaType, clarifications, userId);
   }
 
-  async analyzeMealPhoto(imageBase64: string, mediaType: string, clarifications?: string) {
+  async analyzeMealPhoto(imageBase64: string, mediaType: string, clarifications?: string, userId?: string) {
     const userContent: any[] = [
       { type: 'image', source: { type: 'base64', media_type: mediaType as any, data: imageBase64 } },
       { type: 'text', text: VISION_USER },
@@ -96,6 +137,11 @@ export class NutritionService {
       system: VISION_SYSTEM,
       messages: [{ role: 'user', content: userContent }],
     });
+
+    if (userId) {
+      this.trackTokens(userId, AiOperation.NUTRITION_ANALYSIS, 'claude-sonnet-4-6', response.usage.input_tokens, response.usage.output_tokens);
+    }
+
     const text = response.content.filter((b) => b.type === 'text').map((b: any) => b.text).join('');
     try {
       return JSON.parse(text);
@@ -269,6 +315,8 @@ Return a JSON array. Each item: {"name":string,"cuisineOrigin":string,"isLocal":
       system: SUGGESTION_SYSTEM,
       messages: [{ role: 'user', content: prompt }],
     });
+
+    this.trackTokens(userId, AiOperation.MEAL_SUGGESTION, 'claude-sonnet-4-6', response.usage.input_tokens, response.usage.output_tokens);
 
     const text = response.content.filter((b) => b.type === 'text').map((b: any) => b.text).join('');
     let items: any[];

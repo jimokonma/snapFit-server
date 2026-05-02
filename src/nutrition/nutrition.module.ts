@@ -11,6 +11,7 @@ import {
   UserBudgetSchema,
 } from '../common/schemas/user-nutrition-preferences.schema';
 import { User, UserSchema } from '../common/schemas/user.schema';
+import { AiTokenUsage, AiTokenUsageSchema } from '../common/schemas/ai-token-usage.schema';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 
 @Module({
@@ -21,6 +22,7 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
       { name: UserNutritionPreferences.name, schema: UserNutritionPreferencesSchema },
       { name: UserBudget.name, schema: UserBudgetSchema },
       { name: User.name, schema: UserSchema },
+      { name: AiTokenUsage.name, schema: AiTokenUsageSchema },
     ]),
     SubscriptionsModule,
   ],

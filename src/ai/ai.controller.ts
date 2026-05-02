@@ -21,8 +21,13 @@ export class AiController {
   @Post('chat')
   @ApiOperation({ summary: 'Chat with AI fitness coach' })
   @ApiResponse({ status: 200, description: 'AI response generated' })
-  async chat(@Body() body: { messages: Array<{ role: 'user' | 'assistant'; content: string }> }) {
+  async chat(
+    @Body() body: {
+      messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+      userContext?: string;
+    },
+  ) {
     if (!body.messages?.length) throw new BadRequestException('messages are required');
-    return { response: await this.aiService.chat(body.messages) };
+    return { response: await this.aiService.chat(body.messages, body.userContext) };
   }
 }

@@ -649,13 +649,20 @@ REJECT if: feet are cut off, body is twisted, or significant parts of the body a
     };
   }
 
-  async chat(messages: Array<{ role: 'user' | 'assistant'; content: string }>): Promise<string> {
+  async chat(
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+    userContext?: string,
+  ): Promise<string> {
+    const userSection = userContext
+      ? `\n\nYou are coaching this specific user:\n${userContext}\n\nAlways address them by their first name. Tailor every response to their profile — reference their goal, stats, and body analysis where relevant.`
+      : '';
+
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       system: `You are SnapFit AI, a specialized fitness coach. You ONLY answer questions related to fitness, exercise, and working out. This includes: exercise techniques and form, workout programming, muscle groups and anatomy, recovery and rest, fitness nutrition (macros, pre/post workout meals), gym equipment and home alternatives, injury prevention, and fitness goals (muscle gain, fat loss, endurance).
 
-If asked anything unrelated to fitness or exercise, politely decline and redirect to fitness topics. Keep responses concise, practical, and motivating. Use plain text only — no markdown formatting like ** or ##.`,
+If asked anything unrelated to fitness or exercise, politely decline and redirect to fitness topics. Keep responses concise, practical, and motivating. Use plain text only — no markdown formatting like ** or ##.${userSection}`,
       messages,
     });
 

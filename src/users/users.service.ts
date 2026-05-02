@@ -142,6 +142,25 @@ export class UsersService {
     return code;
   }
 
+  async isFreeTrialActive(userId: string): Promise<boolean> {
+    const user = await this.userModel.findById(userId).select('createdAt tier');
+    if (!user) return false;
+    if ((user as any).tier !== 'free') return false;
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const daysSince = (Date.now() - new Date((user as any).createdAt).getTime()) / msPerDay;
+    return daysSince <= 7;
+  }
+
+  async getFreeTrialInstructionsRemaining(userId: string): Promise<number> {
+    const user = await this.userModel.findById(userId).select('freeTrialInstructionsUsed');
+    const used = (user as any)?.freeTrialInstructionsUsed ?? 0;
+    return Math.max(0, 3 - used);
+  }
+
+  async incrementFreeTrialInstructions(userId: string): Promise<void> {
+    await this.userModel.updateOne({ _id: userId }, { $inc: { freeTrialInstructionsUsed: 1 } });
+  }
+
   async getAllUsers(): Promise<User[]> {
     return this.userModel.find().select('-password -refreshToken');
   }

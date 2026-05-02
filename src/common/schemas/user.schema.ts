@@ -165,6 +165,9 @@ export class User {
 
   @Prop()
   referredBy: string; // referralCode used at signup
+
+  @Prop({ default: 0 })
+  freeTrialInstructionsUsed: number;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

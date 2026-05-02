@@ -48,9 +48,16 @@ export class AdminService {
     await this.setConfig(`${tier.toUpperCase()}_${quotaType.toUpperCase()}_LIMIT`, limit, `${tier} ${quotaType} limit`);
   }
 
-  // Kept for backward-compat — maps old instruction limit concept to quota config
   async updateInstructionsLimit(plan: string, limit: number): Promise<void> {
     await this.setConfig(`${plan.toUpperCase()}_AI_IMAGES_LIMIT`, limit, `${plan} AI images limit`);
+  }
+
+  async updateFreeTrialDays(days: number): Promise<void> {
+    await this.setConfig('FREE_TRIAL_DAYS', days, 'Number of free trial days');
+  }
+
+  async updateFreeTrialInstructions(instructions: number): Promise<void> {
+    await this.setConfig('FREE_TRIAL_INSTRUCTIONS', instructions, 'Free trial instruction generations allowed');
   }
 
   // ── Dashboard Overview ────────────────────────────────────────────────────
@@ -93,11 +100,11 @@ export class AdminService {
 
     const totalRevenue = allPayments.reduce((sum, p) => sum + p.amount, 0);
     const thisMonthRevenue = allPayments
-      .filter((p) => new Date(p.createdAt) >= startOfMonth)
+      .filter((p) => new Date((p as any).createdAt) >= startOfMonth)
       .reduce((sum, p) => sum + p.amount, 0);
     const lastMonthRevenue = allPayments
       .filter((p) => {
-        const d = new Date(p.createdAt);
+        const d = new Date((p as any).createdAt);
         return d >= startOfLastMonth && d <= endOfLastMonth;
       })
       .reduce((sum, p) => sum + p.amount, 0);

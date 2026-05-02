@@ -256,7 +256,8 @@ export class WorkoutsService {
 
     const instructions = await this.aiService.generateExerciseInstructions(exerciseName);
 
-    workout.instructionsGenerated += 1;
+    if (type === 'image') workout.imagesGenerated += 1;
+    else workout.videosGenerated += 1;
     await workout.save();
 
     return { exerciseName, type, instructions };

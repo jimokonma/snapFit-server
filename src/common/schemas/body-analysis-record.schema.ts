@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { encryptionPlugin } from '../plugins/encryption.plugin';
 
 export type BodyAnalysisRecordDocument = BodyAnalysisRecord & Document;
 
@@ -34,3 +35,8 @@ export class BodyAnalysisRecord {
 }
 
 export const BodyAnalysisRecordSchema = SchemaFactory.createForClass(BodyAnalysisRecord);
+
+BodyAnalysisRecordSchema.plugin(encryptionPlugin, [
+  { path: 'photoUrls', asType: 'object' },
+  { path: 'analysis', asType: 'object' },
+]);

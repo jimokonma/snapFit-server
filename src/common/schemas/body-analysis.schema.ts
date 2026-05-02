@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { encryptionPlugin } from '../plugins/encryption.plugin';
 
 export type BodyAnalysisDocument = BodyAnalysis & Document;
 
@@ -18,8 +19,9 @@ export class BodyAnalysis {
   @Prop({ required: true, enum: PhotoType })
   photoType: PhotoType;
 
-  @Prop({ required: true })
-  imageUrl: string;
+  /** Stores the encrypted Cloudinary public_id (new uploads) or legacy full URL (old uploads). */
+  @Prop()
+  cloudinaryPublicId: string;
 
   @Prop({ required: true, default: false })
   validationPassed: boolean;
@@ -32,6 +34,8 @@ export class BodyAnalysis {
 }
 
 export const BodyAnalysisSchema = SchemaFactory.createForClass(BodyAnalysis);
+
+BodyAnalysisSchema.plugin(encryptionPlugin, [{ path: 'cloudinaryPublicId' }]);
 
 BodyAnalysisSchema.index({ userId: 1, photoType: 1 });
 BodyAnalysisSchema.index({ userId: 1, createdAt: -1 });

@@ -23,8 +23,14 @@ export class BodyAnalysisService {
     private subscriptionsService: SubscriptionsService,
   ) {}
 
+  /** Returns cloudinaryPublicId for new docs, or the legacy imageUrl string for old docs. */
+  private getPhotoId(doc: any): string | undefined {
+    return doc.cloudinaryPublicId || doc.imageUrl;
+  }
+
   /**
-   * Upload a single body photo, run Claude validation immediately, return result.
+   * Upload a single body photo as a private Cloudinary asset,
+   * run Claude validation immediately, and return a short-lived signed URL.
    */
   async uploadAndValidatePhoto(
     userId: string,
@@ -43,19 +49,20 @@ export class BodyAnalysisService {
     }
 
     const folder = `snapfit/users/${userId}/body-photos`;
-    const imageUrl = await Promise.race([
-      this.mediaService.uploadImage(file, folder),
+    const { publicId, signedUrl } = await Promise.race([
+      this.mediaService.uploadImagePrivate(file, folder),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Image upload timeout')), 30000),
       ),
     ]);
 
-    const validation = await this.aiService.validatePhoto(imageUrl, photoType as any);
+    // Validate photo via AI using a short-lived signed URL (Claude fetches from Cloudinary)
+    const validation = await this.aiService.validatePhoto(signedUrl, photoType as any);
 
     const existing = await this.bodyAnalysisModel.findOne({ userId, photoType });
     if (existing) {
       await this.bodyAnalysisModel.findByIdAndUpdate(existing._id, {
-        imageUrl,
+        cloudinaryPublicId: publicId,
         validationPassed: validation.passed,
         validationIssues: validation.issues,
         validationFeedback: validation.feedback,
@@ -64,14 +71,15 @@ export class BodyAnalysisService {
       await this.bodyAnalysisModel.create({
         userId,
         photoType,
-        imageUrl,
+        cloudinaryPublicId: publicId,
         validationPassed: validation.passed,
         validationIssues: validation.issues,
         validationFeedback: validation.feedback,
       });
     }
 
-    return { imageUrl, validation };
+    // Return a fresh signed URL to the client (expires in 1 hour)
+    return { imageUrl: signedUrl, validation };
   }
 
   /**
@@ -114,7 +122,10 @@ export class BodyAnalysisService {
       );
     }
 
-    const photoUrls = requiredTypes.map((t) => byType[t].imageUrl);
+    // Generate signed URLs for AI (handles both new public_ids and legacy full URLs)
+    const photoUrls = requiredTypes.map((t) =>
+      this.mediaService.generateSignedUrl(this.getPhotoId(byType[t])),
+    );
 
     const userProfile = {
       age: user.age,
@@ -172,10 +183,10 @@ export class BodyAnalysisService {
       userId: new Types.ObjectId(userId),
       analysisNumber: existingCount + 1,
       photoUrls: {
-        upper_front: byType[PhotoType.UPPER_FRONT]?.imageUrl,
-        upper_back: byType[PhotoType.UPPER_BACK]?.imageUrl,
-        side_profile: byType[PhotoType.SIDE_PROFILE]?.imageUrl,
-        full_body: byType[PhotoType.FULL_BODY]?.imageUrl,
+        upper_front: this.getPhotoId(byType[PhotoType.UPPER_FRONT]),
+        upper_back: this.getPhotoId(byType[PhotoType.UPPER_BACK]),
+        side_profile: this.getPhotoId(byType[PhotoType.SIDE_PROFILE]),
+        full_body: this.getPhotoId(byType[PhotoType.FULL_BODY]),
       },
       analysis: bodyAnalysis,
     });
@@ -197,25 +208,44 @@ export class BodyAnalysisService {
     return { bodyAnalysis: user.bodyAnalysis, workoutPlan: latestWorkout || null };
   }
 
-  async getUserPhotos(userId: string): Promise<BodyAnalysisDocument[]> {
-    return this.bodyAnalysisModel.find({ userId }).sort({ createdAt: -1 });
+  async getUserPhotos(userId: string): Promise<any[]> {
+    const docs = await this.bodyAnalysisModel.find({ userId }).sort({ createdAt: -1 });
+    return docs.map((doc) => ({
+      ...(doc.toObject ? doc.toObject() : doc),
+      imageUrl: this.mediaService.generateSignedUrl(this.getPhotoId(doc)),
+      cloudinaryPublicId: undefined,
+    }));
   }
 
   async deletePhoto(userId: string, photoType: PhotoType): Promise<void> {
     const analysis = await this.bodyAnalysisModel.findOne({ userId, photoType });
     if (!analysis) throw new NotFoundException(`Photo of type ${photoType} not found`);
     try {
-      await this.mediaService.deleteMedia(analysis.imageUrl);
-    } catch (err) {
-      this.logger.warn(`Failed to delete from Cloudinary: ${err.message}`);
+      const photoId = this.getPhotoId(analysis);
+      if (photoId) await this.mediaService.deleteMedia(photoId);
+    } catch (err: any) {
+      this.logger.warn(`Failed to delete from Cloudinary: ${err?.message}`);
     }
     await this.bodyAnalysisModel.findByIdAndDelete(analysis._id);
   }
 
-  async getAnalysisHistory(userId: string): Promise<BodyAnalysisRecordDocument[]> {
-    return this.bodyAnalysisRecordModel
+  async getAnalysisHistory(userId: string): Promise<any[]> {
+    const records = await this.bodyAnalysisRecordModel
       .find({ userId: new Types.ObjectId(userId) })
       .sort({ analysisNumber: 1 });
+
+    // photoUrls stores public_ids (decrypted by plugin); convert to signed URLs for the client
+    return records.map((record) => {
+      const obj: any = record.toObject ? record.toObject() : { ...record };
+      if (obj.photoUrls) {
+        const signed: Record<string, string> = {};
+        for (const [key, publicId] of Object.entries(obj.photoUrls as Record<string, string>)) {
+          if (publicId) signed[key] = this.mediaService.generateSignedUrl(publicId);
+        }
+        obj.photoUrls = signed;
+      }
+      return obj;
+    });
   }
 
   async compareLatestTwo(userId: string): Promise<{

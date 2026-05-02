@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Schema as MongooseSchema } from 'mongoose';
 import { SubscriptionTier } from './subscription.schema';
+import { encryptionPlugin } from '../plugins/encryption.plugin';
 
 export type UserDocument = User & Document;
 
@@ -63,13 +64,13 @@ export class User {
   @Prop()
   passwordResetExpires: Date;
 
-  @Prop()
+  @Prop({ type: MongooseSchema.Types.Mixed })
   age: number;
 
-  @Prop()
+  @Prop({ type: MongooseSchema.Types.Mixed })
   height: number; // cm
 
-  @Prop()
+  @Prop({ type: MongooseSchema.Types.Mixed })
   weight: number; // kg
 
   @Prop({ enum: FitnessGoal })
@@ -174,3 +175,13 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+
+UserSchema.plugin(encryptionPlugin, [
+  { path: 'age', asType: 'number' },
+  { path: 'height', asType: 'number' },
+  { path: 'weight', asType: 'number' },
+  { path: 'gender' },
+  { path: 'injuries' },
+  { path: 'bodyAnalysis', asType: 'object' },
+  { path: 'bodyPhotos', asType: 'object' },
+]);

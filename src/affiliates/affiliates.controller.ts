@@ -26,7 +26,25 @@ export class AffiliatesController {
     return this.affiliatesService.recordClick(id);
   }
 
-  // ── Admin endpoints ───────────────────────────────────────────────────
+  // ── Admin: Feature toggle ─────────────────────────────────────────────
+
+  @Get('admin/feature')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get global affiliate feature status (Admin)' })
+  async getFeatureStatus() {
+    return this.affiliatesService.getFeatureStatus();
+  }
+
+  @Patch('admin/feature')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Enable or disable the affiliate feature for all users (Admin)' })
+  async setFeatureStatus(@Body() body: { enabled: boolean }) {
+    return this.affiliatesService.setFeatureStatus(body.enabled);
+  }
+
+  // ── Admin: CRUD ───────────────────────────────────────────────────────
 
   @Get('admin/all')
   @UseGuards(JwtAuthGuard)
@@ -74,7 +92,7 @@ export class AffiliatesController {
   @Patch('admin/:id/toggle')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Toggle active/inactive (Admin)' })
+  @ApiOperation({ summary: 'Toggle individual link active/inactive (Admin)' })
   async toggle(@Param('id') id: string) {
     return this.affiliatesService.toggleActive(id);
   }

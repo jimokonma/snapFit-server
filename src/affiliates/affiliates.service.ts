@@ -2,12 +2,38 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Affiliate, AffiliateDocument, AffiliateCategory } from '../common/schemas/affiliate.schema';
+import { AffiliateSettings, AffiliateSettingsDocument } from '../common/schemas/affiliate-settings.schema';
 
 @Injectable()
 export class AffiliatesService {
   constructor(
     @InjectModel(Affiliate.name) private affiliateModel: Model<AffiliateDocument>,
+    @InjectModel(AffiliateSettings.name) private settingsModel: Model<AffiliateSettingsDocument>,
   ) {}
+
+  private async getSettings(): Promise<AffiliateSettingsDocument> {
+    return this.settingsModel.findOneAndUpdate(
+      {},
+      { $setOnInsert: { enabled: true } },
+      { upsert: true, new: true },
+    );
+  }
+
+  // ── Admin: Global feature toggle ──────────────────────────────────────
+
+  async getFeatureStatus(): Promise<{ enabled: boolean }> {
+    const settings = await this.getSettings();
+    return { enabled: settings.enabled };
+  }
+
+  async setFeatureStatus(enabled: boolean): Promise<{ enabled: boolean }> {
+    const settings = await this.settingsModel.findOneAndUpdate(
+      {},
+      { enabled },
+      { upsert: true, new: true },
+    );
+    return { enabled: settings.enabled };
+  }
 
   // ── Admin: CRUD ───────────────────────────────────────────────────────
 
@@ -53,7 +79,7 @@ export class AffiliatesService {
     if (!result) throw new NotFoundException('Affiliate link not found');
   }
 
-  // ── Admin: Toggle ─────────────────────────────────────────────────────
+  // ── Admin: Per-link toggle ────────────────────────────────────────────
 
   async toggleActive(id: string): Promise<Affiliate> {
     const affiliate = await this.findById(id);
@@ -67,6 +93,8 @@ export class AffiliatesService {
   // ── Public: Get active links ──────────────────────────────────────────
 
   async getActiveLinks(category?: AffiliateCategory): Promise<Affiliate[]> {
+    const settings = await this.getSettings();
+    if (!settings.enabled) return [];
     const filter: any = { isActive: true };
     if (category) filter.category = category;
     return this.affiliateModel.find(filter).sort({ displayOrder: 1 });

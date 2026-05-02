@@ -278,77 +278,44 @@ Respond with ONLY this JSON:
     const goal = userProfile.fitnessGoal || 'general_fitness';
 
     const response = await this.anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 6000,
-      system: `You are an expert personal trainer creating personalized 7-day workout plans. Generate safe, effective, periodized plans tailored to the user's body analysis and goals. Each training day MUST include at least 4 exercises. For each exercise include a concise 1-2 sentence "description" explaining what the exercise is and its primary benefit. Respond only with valid JSON.`,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 3500,
+      system: `You are an expert personal trainer. Generate safe, periodized 7-day workout plans tailored to the user's body analysis and goals. Each training day needs at least 4 exercises. Respond only with valid JSON.`,
       messages: [
         {
           role: 'user',
-          content: `Create a personalized 7-day workout plan for this user.
+          content: `Create a personalized 7-day workout plan.
 
-User Profile:
-- Age: ${userProfile.age || 'Not specified'}
-- Height: ${userProfile.height || 'Not specified'} cm
-- Weight: ${userProfile.weight || 'Not specified'} kg
-- Gender: ${userProfile.gender || 'Not specified'}
-- Experience Level: ${level}
-- Workout History: ${userProfile.workoutHistory || 'Limited'}
-- Fitness Goal: ${goal}
-- Days Available Per Week: ${daysPerWeek} (schedule ${daysPerWeek} training days, rest the others)
-- Injuries/Limitations: ${userProfile.injuries || 'None'}
+Profile: age=${userProfile.age}, height=${userProfile.height}cm, weight=${userProfile.weight}kg, gender=${userProfile.gender}, level=${level}, goal=${goal}, days/week=${daysPerWeek}, injuries=${userProfile.injuries || 'none'}
 
-Body Analysis:
-- Overall: ${bodyAnalysis.overallAssessment}
-- Muscle Development: ${bodyAnalysis.bodyComposition.muscleDevelopment}
-- Posture: ${bodyAnalysis.bodyComposition.posture}
-- Priority Areas: ${bodyAnalysis.bodyComposition.priorityAreas.join(', ')}
-- Strengths: ${bodyAnalysis.strengths.join(', ')}
-- Areas for Improvement: ${bodyAnalysis.areasForImprovement.join(', ')}
+Body analysis: ${bodyAnalysis.overallAssessment} | Priority areas: ${bodyAnalysis.bodyComposition.priorityAreas.join(', ')} | Improve: ${bodyAnalysis.areasForImprovement.join(', ')}
 
-Intensity guidelines by level:
-- Beginner: compound movements, higher reps (10-15), longer rest (90-120s), 3-4 training days
-- Intermediate: compound + isolation mix, moderate reps (8-12), rest 60-90s, 4-5 training days
-- Advanced: high specificity, periodized intensity, 3-12 reps, rest 45-75s, 5-6 training days
+Intensity: beginner=10-15 reps/90-120s rest, intermediate=8-12 reps/60-90s, advanced=3-12 reps/45-75s
 
-IMPORTANT: Each training day must have at least 4 exercises (rest days have none).
-
-Respond with ONLY this JSON (all 7 days must be present, Sunday is always rest):
+Return ONLY JSON matching this schema exactly:
 {
-  "title": "Your Personalized Fitness Plan",
-  "description": "2 sentence description of this plan",
-  "days": [
-    {
-      "dayNumber": 1,
-      "dayName": "Monday",
-      "focus": "Upper Body Strength",
-      "isRestDay": false,
-      "estimatedDuration": 60,
-      "exercises": [
-        { "name": "Bench Press", "sets": 4, "reps": "6-8", "restTime": "90s", "description": "A compound push movement targeting chest, shoulders, and triceps through a full press from chest to full arm extension.", "notes": "Keep shoulder blades retracted" },
-        { "name": "Bent-Over Row", "sets": 4, "reps": "6-8", "restTime": "90s", "description": "A compound pull movement that builds thickness across the upper back, lats, and rear delts.", "notes": "Maintain neutral spine throughout" },
-        { "name": "Overhead Press", "sets": 3, "reps": "8-10", "restTime": "75s", "description": "A vertical pressing exercise that develops shoulder strength and stability while engaging the core.", "notes": "Brace core, avoid excessive arch" },
-        { "name": "Tricep Dips", "sets": 3, "reps": "10-12", "restTime": "60s", "description": "An isolation movement that targets the triceps and helps build arm definition and pressing power.", "notes": "Keep elbows tracking back, not flaring out" }
-      ]
-    }
-  ],
-  "nutrition": {
-    "caloricBaseline": "estimated daily caloric need based on their stats and goal",
-    "macroTargets": "protein/carb/fat targets aligned to goal",
-    "mealTiming": "pre/post workout meal suggestions"
-  },
-  "progressTracking": {
-    "weeklyMilestones": ["milestone to watch week 1", "milestone week 2", "milestone week 3", "milestone week 4"],
-    "strengthBenchmarks": ["benchmark exercise 1 target", "benchmark exercise 2 target"],
-    "photoRetakeDate": "Retake progress photos in 4 weeks"
-  },
-  "motivationalNote": "Personalized encouraging message based on their specific goals and current state"
-}`,
+  "title": string,
+  "description": string,
+  "days": [{
+    "dayNumber": 1-7,
+    "dayName": string,
+    "focus": string,
+    "isRestDay": boolean,
+    "estimatedDuration": number,
+    "exercises": [{ "name": string, "sets": number, "reps": string, "restTime": string, "description": string, "notes": string }]
+  }],
+  "nutrition": { "caloricBaseline": string, "macroTargets": string, "mealTiming": string },
+  "progressTracking": { "weeklyMilestones": [string], "strengthBenchmarks": [string], "photoRetakeDate": string },
+  "motivationalNote": string
+}
+
+All 7 days required. Sunday = rest. Training days must have ≥4 exercises each.`,
         },
       ],
     });
 
     if (userId) {
-      this.trackTokens(userId, AiOperation.GENERATE_WORKOUT, 'claude-sonnet-4-6', response.usage.input_tokens, response.usage.output_tokens);
+      this.trackTokens(userId, AiOperation.GENERATE_WORKOUT, 'claude-haiku-4-5-20251001', response.usage.input_tokens, response.usage.output_tokens);
     }
 
     return this.parseJson(

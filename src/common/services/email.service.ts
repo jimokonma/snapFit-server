@@ -17,30 +17,66 @@ export class EmailService {
 
   private getEmailHtml(title: string, content: string, otp?: string): string {
     return `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #228B22, #32CD32); padding: 30px; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 28px;">SnapFit</h1>
-          <p style="color: white; margin: 10px 0 0 0; font-size: 16px;">Your AI-Powered Workout Companion</p>
-        </div>
-        <div style="padding: 30px; background: #f9f9f9;">
-          <h2 style="color: #333; margin-bottom: 20px;">${title}</h2>
-          ${content}
-          ${otp ? `
-            <div style="text-align: center; margin: 30px 0;">
-              <div style="background: #228B22; color: white; padding: 20px; border-radius: 8px;
-                          font-size: 32px; font-weight: bold; letter-spacing: 5px; display: inline-block;">
-                ${otp}
-              </div>
-            </div>
-            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-              Enter this code in the app. This code will expire in 10 minutes.
-            </p>
-          ` : ''}
-        </div>
-        <div style="background: #333; padding: 20px; text-align: center;">
-          <p style="color: #999; margin: 0; font-size: 12px;">© 2024 SnapFit. All rights reserved.</p>
-        </div>
-      </div>
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>${title}</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #0D1117; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0D1117; padding: 32px 16px;">
+          <tr>
+            <td align="center">
+              <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 580px;">
+
+                <!-- Header -->
+                <tr>
+                  <td style="background: linear-gradient(135deg, #EF4444 0%, #F59E0B 100%); border-radius: 16px 16px 0 0; padding: 36px 40px; text-align: center;">
+                    <div style="display: inline-block; background: rgba(0,0,0,0.15); border-radius: 12px; padding: 10px 20px; margin-bottom: 12px;">
+                      <span style="color: white; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase;">SNAP</span><span style="color: rgba(255,255,255,0.75); font-size: 26px; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase;">FIT</span>
+                    </div>
+                    <p style="color: rgba(255,255,255,0.85); margin: 0; font-size: 14px; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 500;">Your AI-Powered Workout Companion</p>
+                  </td>
+                </tr>
+
+                <!-- Body -->
+                <tr>
+                  <td style="background-color: #111827; padding: 36px 40px;">
+                    <h2 style="color: #F9FAFB; margin: 0 0 16px 0; font-size: 22px; font-weight: 700;">${title}</h2>
+                    ${content}
+                    ${otp ? `
+                    <div style="text-align: center; margin: 32px 0 24px;">
+                      <p style="color: #9CA3AF; font-size: 13px; margin: 0 0 16px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Your Verification Code</p>
+                      <div style="display: inline-block; background: linear-gradient(135deg, #EF4444, #F59E0B); border-radius: 12px; padding: 3px;">
+                        <div style="background: #1F2937; border-radius: 10px; padding: 18px 36px;">
+                          <span style="background: linear-gradient(135deg, #EF4444, #F59E0B); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-size: 36px; font-weight: 800; letter-spacing: 10px; display: inline-block; color: #EF4444;">${otp}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div style="background: #1F2937; border-radius: 10px; padding: 14px 20px; margin-bottom: 24px; border-left: 3px solid #F59E0B;">
+                      <p style="color: #9CA3AF; line-height: 1.6; margin: 0; font-size: 14px;">
+                        &#x23F0; This code expires in <strong style="color: #F9FAFB;">10 minutes</strong>. Enter it in the app to continue.
+                      </p>
+                    </div>
+                    ` : ''}
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #0D1117; border-radius: 0 0 16px 16px; padding: 20px 40px; text-align: center; border-top: 1px solid #1F2937;">
+                    <p style="color: #4B5563; margin: 0 0 6px; font-size: 12px;">If you didn't request this, you can safely ignore this email.</p>
+                    <p style="color: #374151; margin: 0; font-size: 11px;">&copy; 2026 SnapFit. All rights reserved.</p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
     `;
   }
 
@@ -52,9 +88,9 @@ export class EmailService {
 
   async sendVerificationEmail(email: string, otp: string): Promise<void> {
     const html = this.getEmailHtml(
-      'Welcome to SnapFit!',
-      `<p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-        Thank you for signing up! Verify your email address using the OTP code below.
+      'Verify Your Email',
+      `<p style="color: #9CA3AF; line-height: 1.7; margin: 0 0 24px; font-size: 15px;">
+        Thanks for signing up! Enter the code below to verify your email address and activate your account.
       </p>`,
       otp,
     );
@@ -63,9 +99,9 @@ export class EmailService {
 
   async sendPasswordResetEmail(email: string, otp: string): Promise<void> {
     const html = this.getEmailHtml(
-      'Password Reset Request',
-      `<p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-        We received a request to reset your password. Use the OTP code below:
+      'Reset Your Password',
+      `<p style="color: #9CA3AF; line-height: 1.7; margin: 0 0 24px; font-size: 15px;">
+        We received a request to reset your password. Use the code below to proceed. If you didn't request this, ignore this email.
       </p>`,
       otp,
     );
@@ -74,18 +110,38 @@ export class EmailService {
 
   async sendWelcomeEmail(email: string, firstName: string): Promise<void> {
     const html = this.getEmailHtml(
-      `Welcome ${firstName}!`,
-      `<p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-        Your email has been verified and you're ready to start your personalized fitness journey with SnapFit.
+      `You're in, ${firstName}! &#x1F525;`,
+      `<p style="color: #9CA3AF; line-height: 1.7; margin: 0 0 24px; font-size: 15px;">
+        Your email is verified and your SnapFit account is ready. Let's build something extraordinary.
       </p>
-      <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #228B22;">
-        <h3 style="color: #228B22; margin-top: 0;">What's Next?</h3>
-        <ul style="color: #666; line-height: 1.8;">
-          <li>Complete your profile setup</li>
-          <li>Upload your body photos for AI analysis</li>
-          <li>Add your available equipment</li>
-          <li>Get your personalized 5-day workout plan</li>
-        </ul>
+      <div style="background: #1F2937; border-radius: 12px; padding: 24px; margin: 0 0 24px; border-left: 4px solid #EF4444;">
+        <h3 style="color: #F9FAFB; margin: 0 0 16px; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Next Steps</h3>
+        <table cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #374151;">
+              <span style="color: #EF4444; font-size: 14px; font-weight: 700; margin-right: 10px;">01</span>
+              <span style="color: #D1D5DB; font-size: 14px;">Complete your profile setup</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #374151;">
+              <span style="color: #EF4444; font-size: 14px; font-weight: 700; margin-right: 10px;">02</span>
+              <span style="color: #D1D5DB; font-size: 14px;">Upload body photos for AI analysis</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #374151;">
+              <span style="color: #EF4444; font-size: 14px; font-weight: 700; margin-right: 10px;">03</span>
+              <span style="color: #D1D5DB; font-size: 14px;">Add your available equipment</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <span style="color: #F59E0B; font-size: 14px; font-weight: 700; margin-right: 10px;">04</span>
+              <span style="color: #D1D5DB; font-size: 14px;">Get your personalized AI workout plan</span>
+            </td>
+          </tr>
+        </table>
       </div>`,
     );
     await this.send(email, "Welcome to SnapFit - Let's Start Your Fitness Journey!", html);

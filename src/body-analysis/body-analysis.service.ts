@@ -87,8 +87,6 @@ export class BodyAnalysisService {
    * Saves a BodyAnalysisRecord to the history collection for comparison later.
    */
   async completeAnalysis(userId: string): Promise<any> {
-    await this.subscriptionsService.checkAndConsumeQuota(userId, 'bodyAnalysis');
-
     const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('User not found');
 
@@ -122,6 +120,9 @@ export class BodyAnalysisService {
       );
     }
 
+    // Check quota before starting AI work (but don't consume yet — only consume on success)
+    await this.subscriptionsService.checkQuota(userId, 'bodyAnalysis');
+
     // Generate signed URLs for AI (handles both new public_ids and legacy full URLs)
     const photoUrls = requiredTypes.map((t) =>
       this.mediaService.generateSignedUrl(this.getPhotoId(byType[t])),
@@ -149,9 +150,12 @@ export class BodyAnalysisService {
     const workoutPlan = await Promise.race([
       this.aiService.generateWorkoutPlan(userProfile, bodyAnalysis),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Workout generation timeout')), 90000),
+        setTimeout(() => reject(new Error('Workout generation timeout')), 60000),
       ),
     ]);
+
+    // AI succeeded — consume the quota now
+    await this.subscriptionsService.consumeQuota(userId, 'bodyAnalysis');
 
     const savedWorkout = await this.workoutModel.create({
       userId: new Types.ObjectId(userId),

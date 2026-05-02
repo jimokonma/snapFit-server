@@ -150,6 +150,34 @@ export class SubscriptionsService {
     });
   }
 
+  /** Check quota without consuming — throws if limit reached. */
+  async checkQuota(userId: string, type: QuotaType): Promise<void> {
+    let sub = await this.getActiveSubscription(userId);
+
+    if (!sub) {
+      sub = (await this.createFreeSubscription(userId)) as SubscriptionDocument;
+    }
+
+    const quotas = TIER_QUOTAS[sub.tier];
+    const { limit, used } = this.getQuotaValues(sub, type, quotas);
+
+    if (limit !== -1 && used >= limit) {
+      throw new ForbiddenException(
+        `You have reached your ${this.quotaLabel(type)} limit for this period. Upgrade your plan to continue.`,
+      );
+    }
+  }
+
+  /** Consume quota without checking — call only after a successful operation. */
+  async consumeQuota(userId: string, type: QuotaType): Promise<void> {
+    const sub = await this.getActiveSubscription(userId);
+    if (!sub) return;
+
+    await this.subscriptionModel.findByIdAndUpdate(sub._id, {
+      $inc: { [this.quotaField(type)]: 1 },
+    });
+  }
+
   async getQuotaStatus(userId: string): Promise<{
     tier: SubscriptionTier;
     nutritionScans: { used: number; limit: number };

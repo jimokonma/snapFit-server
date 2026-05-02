@@ -168,6 +168,9 @@ export class User {
 
   @Prop({ default: 0 })
   freeTrialInstructionsUsed: number;
+
+  @Prop({ default: true })
+  saveChatHistory: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

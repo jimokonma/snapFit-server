@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsEnum, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsEnum, IsIn, IsBoolean } from 'class-validator';
 import { FitnessGoal, ExperienceLevel } from '../../common/schemas/user.schema';
 
 export class UpdateProfileDto {
@@ -45,4 +45,8 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   profilePicture?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  saveChatHistory?: boolean;
 }

@@ -5,6 +5,8 @@ import { Model } from 'mongoose';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { AiTokenUsage, AiTokenUsageDocument, AiOperation, AiProvider } from '../common/schemas/ai-token-usage.schema';
+import { ChatMessage, ChatMessageDocument } from '../common/schemas/chat-message.schema';
+import { User, UserDocument } from '../common/schemas/user.schema';
 
 export type PhotoType = 'upper_front' | 'upper_back' | 'side_profile' | 'full_body';
 
@@ -79,6 +81,8 @@ export class AiService {
   constructor(
     private configService: ConfigService,
     @InjectModel(AiTokenUsage.name) private tokenUsageModel: Model<AiTokenUsageDocument>,
+    @InjectModel(ChatMessage.name) private chatMessageModel: Model<ChatMessageDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {
     const anthropicKey = this.configService.get<string>('ANTHROPIC_API_KEY') || process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) {
@@ -766,8 +770,34 @@ If asked anything unrelated to fitness or exercise, politely decline and redirec
     }
 
     const content = response.content[0];
-    if (content.type === 'text') return content.text;
-    throw new Error('Unexpected response type from AI');
+    if (content.type !== 'text') throw new Error('Unexpected response type from AI');
+    const replyText = content.text;
+
+    if (userId) {
+      const user = await this.userModel.findById(userId).select('saveChatHistory').lean();
+      if (user?.saveChatHistory !== false) {
+        const lastUserMsg = messages[messages.length - 1];
+        await this.chatMessageModel.insertMany([
+          { userId, role: lastUserMsg.role, content: lastUserMsg.content },
+          { userId, role: 'assistant', content: replyText },
+        ]);
+      }
+    }
+
+    return replyText;
+  }
+
+  async getChatHistory(userId: string): Promise<Array<{ role: string; content: string; createdAt: Date }>> {
+    const docs = await this.chatMessageModel
+      .find({ userId })
+      .sort({ createdAt: 1 })
+      .select('role content createdAt')
+      .lean();
+    return docs as any[];
+  }
+
+  async clearChatHistory(userId: string): Promise<void> {
+    await this.chatMessageModel.deleteMany({ userId });
   }
 
   async compareBodyAnalyses(

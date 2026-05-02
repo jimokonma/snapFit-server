@@ -24,6 +24,14 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, updateData: Partial<User>): Promise<User> {
+    if (updateData.profilePicture) {
+      const existing = await this.userModel.findById(userId).select('profilePicture');
+      if (existing?.profilePicture) {
+        const publicId = this.extractCloudinaryPublicId(existing.profilePicture);
+        if (publicId) this.mediaService.deleteMedia(publicId).catch(() => {});
+      }
+    }
+
     const user = await this.userModel.findByIdAndUpdate(
       userId,
       updateData,
@@ -33,6 +41,21 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
     return user;
+  }
+
+  private extractCloudinaryPublicId(url: string): string | null {
+    try {
+      const uploadIdx = url.indexOf('/upload/');
+      if (uploadIdx === -1) return null;
+      let path = url.substring(uploadIdx + 8);
+      // Skip past transformations/version to find the folder path
+      const snapfitIdx = path.indexOf('snapfit/');
+      if (snapfitIdx !== -1) path = path.substring(snapfitIdx);
+      const dotIdx = path.lastIndexOf('.');
+      return dotIdx !== -1 ? path.substring(0, dotIdx) : path;
+    } catch {
+      return null;
+    }
   }
 
   async uploadBodyPhotos(userId: string, files: Express.Multer.File[]): Promise<User> {

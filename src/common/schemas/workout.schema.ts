@@ -91,6 +91,9 @@ export class WorkoutDay {
 
   @Prop()
   estimatedDuration: number;
+
+  @Prop()
+  completedAt: Date;
 }
 
 @Schema({ timestamps: true })

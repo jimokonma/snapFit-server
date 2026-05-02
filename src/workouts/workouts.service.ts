@@ -107,7 +107,20 @@ export class WorkoutsService {
       const dayFullyComplete =
         day.exercises.length > 0 &&
         day.exercises.every((e: any) => e.status === 'done');
-      if (dayFullyComplete) pointsToAward += 200;
+      if (dayFullyComplete) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const anotherDayCompletedToday = workout.days.some(d => {
+          if (d === day) return false;
+          const completedAt = (d as any).completedAt as Date | undefined;
+          if (!completedAt) return false;
+          const c = new Date(completedAt);
+          c.setHours(0, 0, 0, 0);
+          return c.getTime() === today.getTime();
+        });
+        if (!anotherDayCompletedToday) pointsToAward += 200;
+        (day as any).completedAt = new Date();
+      }
       await this.usersService.addAuraPoints(userId, pointsToAward);
     }
 

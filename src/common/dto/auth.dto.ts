@@ -172,3 +172,14 @@ export class GoogleAuthDto {
   @IsString()
   accessToken: string;
 }
+
+export class ChangePasswordDto {
+  @ApiProperty({ example: 'currentpassword123' })
+  @IsString()
+  currentPassword: string;
+
+  @ApiProperty({ example: 'newpassword123', minLength: 6 })
+  @IsString()
+  @MinLength(6)
+  newPassword: string;
+}

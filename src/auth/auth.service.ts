@@ -5,7 +5,7 @@ import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { User, UserDocument } from '../common/schemas/user.schema';
-import { RegisterDto, LoginDto, OnboardingDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ResendVerificationDto, GoogleAuthDto } from '../common/dto/auth.dto';
+import { RegisterDto, LoginDto, OnboardingDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ResendVerificationDto, GoogleAuthDto, ChangePasswordDto } from '../common/dto/auth.dto';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../common/services/email.service';
 import { MediaService } from '../media/media.service';
@@ -382,6 +382,23 @@ export class AuthService {
     console.log(`✅ Password reset successful for user: ${email}`);
 
     return { message: 'Password reset successfully!' };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ message: string }> {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+
+    if (!user.password) {
+      throw new BadRequestException('Your account uses Google sign-in and does not have a password. Use "Forgot Password" to set one.');
+    }
+
+    const isValid = await bcrypt.compare(dto.currentPassword, user.password);
+    if (!isValid) throw new UnauthorizedException('Current password is incorrect.');
+
+    user.password = await bcrypt.hash(dto.newPassword, 10);
+    await user.save();
+
+    return { message: 'Password changed successfully.' };
   }
 
   async googleAuth(googleAuthDto: GoogleAuthDto): Promise<{ user: User; tokens: any }> {

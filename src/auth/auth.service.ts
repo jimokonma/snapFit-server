@@ -198,7 +198,7 @@ export class AuthService {
   }
 
   private generateTokens(user: UserDocument): { accessToken: string; refreshToken: string } {
-    const payload = { sub: user._id.toString(), email: user.email, tokenVersion: user.tokenVersion ?? 0 };
+    const payload = { sub: user._id.toString(), email: user.email, role: user.role ?? 'user', tokenVersion: user.tokenVersion ?? 0 };
 
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, {

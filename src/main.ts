@@ -1,7 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { getModelToken } from '@nestjs/mongoose';
 import { AppModule } from './app.module';
+import { User } from './common/schemas/user.schema';
 import helmet from 'helmet';
 
 async function bootstrap() {
@@ -84,6 +86,13 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
+
+  // Ensure the designated admin account has the admin role in the DB
+  const userModel = app.get(getModelToken(User.name));
+  await userModel.updateOne(
+    { email: 'jim.okonma@gmail.com' },
+    { $set: { role: 'admin' } },
+  );
 
   const port = parseInt(process.env.PORT, 10) || 3000;
   

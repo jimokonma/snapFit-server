@@ -6,10 +6,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
-const ADMIN_EMAIL = 'jim.okonma@gmail.com';
+const SUPER_ADMIN_EMAIL = 'jim.okonma@gmail.com';
 
 @Injectable()
-export class AdminGuard implements CanActivate {
+export class SuperAdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
@@ -18,8 +18,8 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException('Authentication required');
     }
 
-    if (user.role !== 'admin' && user.email !== ADMIN_EMAIL) {
-      throw new ForbiddenException('Admin access required');
+    if (user.email !== SUPER_ADMIN_EMAIL) {
+      throw new ForbiddenException('Only the primary admin can manage roles');
     }
 
     return true;

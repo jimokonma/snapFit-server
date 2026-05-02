@@ -20,13 +20,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    const user = await this.userModel.findById(payload.sub).select('tokenVersion').lean();
+    const user = await this.userModel.findById(payload.sub).select('tokenVersion role isBanned').lean();
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
     if ((user.tokenVersion ?? 0) !== (payload.tokenVersion ?? 0)) {
       throw new UnauthorizedException('Token has been invalidated');
     }
-    return { sub: payload.sub, email: payload.email };
+    if (user.isBanned) {
+      throw new UnauthorizedException('Account has been banned');
+    }
+    return { sub: payload.sub, email: payload.email, role: user.role ?? 'user' };
   }
 }

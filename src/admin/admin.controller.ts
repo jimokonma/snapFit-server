@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from './guards/admin.guard';
+import { SuperAdminGuard } from './guards/super-admin.guard';
 
 @ApiTags('Admin')
 @Controller('admin')
@@ -75,6 +76,16 @@ export class AdminController {
   @ApiOperation({ summary: 'Get full user detail' })
   async getUserDetail(@Param('id') id: string) {
     return this.adminService.getUserDetail(id);
+  }
+
+  @Patch('users/:id/role')
+  @UseGuards(SuperAdminGuard)
+  @ApiOperation({ summary: 'Promote or demote a user role (admin | user) — super-admin only' })
+  async updateUserRole(
+    @Param('id') id: string,
+    @Body() body: { role: 'user' | 'admin' },
+  ) {
+    return this.adminService.updateUserRole(id, body.role);
   }
 
   @Patch('users/:id/ban')

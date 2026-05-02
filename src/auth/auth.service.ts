@@ -218,6 +218,7 @@ export class AuthService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      role: user.role,
       isEmailVerified: user.isEmailVerified,
       onboardingCompleted: user.onboardingCompleted,
       isActive: user.isActive,

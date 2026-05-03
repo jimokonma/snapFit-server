@@ -88,6 +88,9 @@ export class User {
   @Prop()
   injuries: string;
 
+  @Prop({ type: [String], default: [] })
+  selectedEquipment: string[];
+
   @Prop({ type: Object })
   bodyPhotos: {
     upper_front?: string;

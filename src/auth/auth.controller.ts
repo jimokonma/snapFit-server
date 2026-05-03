@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { RegisterDto, LoginDto, RefreshTokenDto, OnboardingDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ResendVerificationDto, GoogleAuthDto, ProfileInfoDto, FitnessGoalDto, BodyPhotosDto, ChangePasswordDto } from '../common/dto/auth.dto';
+import { RegisterDto, LoginDto, RefreshTokenDto, OnboardingDto, VerifyEmailDto, ForgotPasswordDto, ResetPasswordDto, ResendVerificationDto, GoogleAuthDto, ProfileInfoDto, FitnessGoalDto, BodyPhotosDto, ChangePasswordDto, EquipmentSelectionDto } from '../common/dto/auth.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -62,6 +62,15 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Fitness goal saved successfully' })
   async saveFitnessGoal(@Request() req, @Body() fitnessGoalDto: FitnessGoalDto) {
     return this.authService.saveFitnessGoal(req.user.sub, fitnessGoalDto);
+  }
+
+  @Post('onboarding/equipment-selection')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Save equipment selection (Step 3)' })
+  @ApiResponse({ status: 200, description: 'Equipment selection saved successfully' })
+  async saveEquipmentSelection(@Request() req, @Body() equipmentDto: EquipmentSelectionDto) {
+    return this.authService.saveEquipmentSelection(req.user.sub, equipmentDto.selectedEquipment);
   }
 
   @Post('onboarding/body-photos')

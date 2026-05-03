@@ -507,6 +507,23 @@ export class AuthService {
     };
   }
 
+  async saveEquipmentSelection(userId: string, selectedEquipment: string[]): Promise<{ message: string; user: any }> {
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      { selectedEquipment },
+      { new: true }
+    );
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      message: 'Equipment selection saved successfully!',
+      user: this.getSafeUserData(user),
+    };
+  }
+
   async saveBodyPhotos(userId: string, files: Express.Multer.File[]): Promise<{ message: string; user: any }> {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files provided');

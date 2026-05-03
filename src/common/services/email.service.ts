@@ -4,14 +4,17 @@ import { Resend } from 'resend';
 
 @Injectable()
 export class EmailService {
-  private resend: Resend;
+  private resend: Resend | null;
   private from: string;
 
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('RESEND_API_KEY');
-    if (!apiKey) throw new Error('RESEND_API_KEY is not set');
-
-    this.resend = new Resend(apiKey);
+    if (!apiKey) {
+      console.warn('⚠️  RESEND_API_KEY is not set — email sending will be disabled');
+      this.resend = null;
+    } else {
+      this.resend = new Resend(apiKey);
+    }
     this.from = this.configService.get<string>('RESEND_FROM_EMAIL', 'SnapFit <onboarding@resend.dev>');
   }
 
@@ -81,6 +84,10 @@ export class EmailService {
   }
 
   private async send(to: string, subject: string, html: string): Promise<void> {
+    if (!this.resend) {
+      console.warn(`⚠️  Email not sent to ${to} (RESEND_API_KEY not configured)`);
+      return;
+    }
     const { data, error } = await this.resend.emails.send({ from: this.from, to, subject, html });
     if (error) throw new Error(error.message);
     console.log(`✅ Email sent to ${to} [id: ${data?.id}]`);

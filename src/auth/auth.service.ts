@@ -449,27 +449,35 @@ export class AuthService {
 
   // Step-by-step onboarding methods
   async saveProfileInfo(userId: string, profileInfoDto: any): Promise<{ message: string; user: any }> {
+    console.log(`[saveProfileInfo] userId=${userId} dto=${JSON.stringify(profileInfoDto)}`);
     const { gender, age, height, weight, experienceLevel, workoutHistory, daysPerWeek, injuries } = profileInfoDto;
 
-    const user = await this.userModel.findByIdAndUpdate(
-      userId,
-      {
-        gender,
-        age: parseInt(age),
-        height: parseInt(height),
-        weight: parseInt(weight),
-        experienceLevel,
-        workoutHistory,
-        daysPerWeek: daysPerWeek ? parseInt(daysPerWeek) : undefined,
-        injuries: injuries || null,
-        onboarding: {
-          profileInfo: true,
-          fitnessGoal: false,
-          bodyAnalysis: false,
+    let user: any;
+    try {
+      user = await this.userModel.findByIdAndUpdate(
+        userId,
+        {
+          gender,
+          age: parseInt(age),
+          height: parseInt(height),
+          weight: parseInt(weight),
+          experienceLevel,
+          workoutHistory,
+          daysPerWeek: daysPerWeek ? parseInt(daysPerWeek) : undefined,
+          injuries: injuries || null,
+          onboarding: {
+            profileInfo: true,
+            fitnessGoal: false,
+            bodyAnalysis: false,
+          },
         },
-      },
-      { new: true }
-    );
+        { new: true }
+      );
+      console.log(`[saveProfileInfo] update OK, user found: ${!!user}`);
+    } catch (err: any) {
+      console.error(`[saveProfileInfo] DB error:`, err?.message, err?.stack);
+      throw err;
+    }
 
     if (!user) {
       throw new NotFoundException('User not found');

@@ -299,6 +299,7 @@ export class AdminService {
       endDate,
       quotaResetDate: resetDate,
       isGrandfathered: true,
+      grantedByAdmin: true,
       paymentProvider: 'none',
     });
 

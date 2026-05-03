@@ -139,6 +139,9 @@ export class Subscription {
   @Prop({ default: false })
   isGrandfathered: boolean;
 
+  @Prop({ default: false })
+  grantedByAdmin: boolean;
+
   @Prop()
   originalPrice: number;
 

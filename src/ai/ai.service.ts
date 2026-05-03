@@ -430,14 +430,16 @@ Requirements:
     const prompt = (promptMsg.content[0] as any).text?.trim() ||
       `Fit male athlete performing ${exercise.name} in a dark professional gym. Side-view camera. Slow motion showing complete movement from starting position through full range of motion and back to start. 4K cinematic lighting, educational fitness demonstration.`;
 
+    // Submit the prediction — no 'Prefer: wait' since this runs in a background task
+    // and minimax/video-01 takes 3–8 minutes (far beyond the sync wait limit)
     const response = await fetch('https://api.replicate.com/v1/models/minimax/video-01/predictions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${replicateKey}`,
         'Content-Type': 'application/json',
-        'Prefer': 'wait',
       },
-      body: JSON.stringify({ input: { prompt, duration: 6 } }),
+      // minimax/video-01 only accepts `prompt` — no `duration` parameter
+      body: JSON.stringify({ input: { prompt } }),
     });
 
     if (!response.ok) {
@@ -447,30 +449,35 @@ Requirements:
 
     const data: any = await response.json();
 
+    // Replicate immediately returns succeeded when result is cached
     if (data.status === 'succeeded' && data.output) {
-      return Array.isArray(data.output) ? data.output[0] : data.output;
+      const output = data.output;
+      return Array.isArray(output) ? output[0] : output;
     }
 
-    if (data.urls?.get) {
-      let pollResponse: any;
-      for (let i = 0; i < 30; i++) {
-        await new Promise(r => setTimeout(r, 4000));
-        const poll = await fetch(data.urls.get, {
-          headers: { 'Authorization': `Bearer ${replicateKey}` },
-        });
-        pollResponse = await poll.json();
-        if (pollResponse.status === 'succeeded') {
-          const output = pollResponse.output;
-          return Array.isArray(output) ? output[0] : output;
-        }
-        if (pollResponse.status === 'failed') {
-          throw new Error('Video generation failed');
-        }
+    if (!data.urls?.get) {
+      throw new Error('Unexpected response from Replicate API — no polling URL');
+    }
+
+    // Poll until done — 90 attempts × 8 s = 12 minutes max (minimax typically 3–8 min)
+    for (let i = 0; i < 90; i++) {
+      await new Promise(r => setTimeout(r, 8000));
+      const poll = await fetch(data.urls.get, {
+        headers: { 'Authorization': `Bearer ${replicateKey}` },
+      });
+      const pollResponse: any = await poll.json();
+
+      if (pollResponse.status === 'succeeded') {
+        const output = pollResponse.output;
+        return Array.isArray(output) ? output[0] : output;
       }
-      throw new Error('Video generation timed out');
+      if (pollResponse.status === 'failed' || pollResponse.status === 'canceled') {
+        const detail = pollResponse.error || pollResponse.status;
+        throw new Error(`Video generation failed: ${detail}`);
+      }
     }
 
-    throw new Error('Unexpected response from Replicate API');
+    throw new Error('Video generation timed out after 12 minutes');
   }
 
   async convertExerciseToHome(exercise: { name: string; sets: number; reps: string; notes?: string }, userId?: string): Promise<HomeVariantResult> {

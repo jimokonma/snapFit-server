@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Headers, RawBodyRequest, Req, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Headers, Param, RawBodyRequest, Req, UseGuards, Request, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { PayProService } from './paypro.service';
@@ -42,11 +42,27 @@ export class PaymentsController {
     return this.paymentsService.getUserPayments(req.user.sub);
   }
 
+  @Get('verify/paystack/:reference')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Verify a Paystack payment by reference and activate subscription' })
+  async verifyPaystack(@Param('reference') reference: string) {
+    return this.paymentsService.verifyPaystackPayment(reference);
+  }
+
   // ── Webhooks (no auth — verified by signature) ────────────────────────
 
   @Post('webhook/paystack')
   @ApiOperation({ summary: 'Paystack webhook handler' })
-  async handlePaystackWebhook(@Body() body: any) {
+  async handlePaystackWebhook(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers('x-paystack-signature') signature: string,
+    @Body() body: any,
+  ) {
+    const rawBody = (req as any).rawBody?.toString() ?? JSON.stringify(body);
+    if (signature && !this.paymentsService.verifyPaystackSignature(rawBody, signature)) {
+      throw new UnauthorizedException('Invalid Paystack signature');
+    }
     const { event, data } = body;
     await this.paymentsService.handlePaystackWebhook(event, data);
     return { status: 'ok' };

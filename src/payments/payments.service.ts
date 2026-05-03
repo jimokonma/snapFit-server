@@ -1,6 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { ConfigService } from '@nestjs/config';
 import { Model, Types } from 'mongoose';
+import * as crypto from 'crypto';
 import { Payment, PaymentDocument, PaymentType, PaymentStatus, PaymentProvider } from '../common/schemas/payment.schema';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { PayProService } from './paypro.service';
@@ -14,6 +16,7 @@ export class PaymentsService {
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     private subscriptionsService: SubscriptionsService,
     private payProService: PayProService,
+    private configService: ConfigService,
   ) {}
 
   // ── Checkout Initialisation ───────────────────────────────────────────
@@ -70,7 +73,43 @@ export class PaymentsService {
     return { checkoutUrl, provider: PaymentProvider.PAYPRO_GLOBAL, reference: orderId };
   }
 
+  // ── Paystack Verify (called by mobile after popup closes) ────────────
+
+  async verifyPaystackPayment(reference: string): Promise<{ status: string; tier: string; billingCycle: string }> {
+    const secretKey = this.configService.get<string>('PAYSTACK_SECRET_KEY');
+    if (!secretKey) throw new BadRequestException('Paystack not configured');
+
+    const res = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+      headers: { Authorization: `Bearer ${secretKey}` },
+    });
+
+    if (!res.ok) {
+      throw new BadRequestException(`Paystack verify failed: ${res.statusText}`);
+    }
+
+    const body: any = await res.json();
+    const txData = body.data;
+
+    if (txData?.status === 'success') {
+      await this.handlePaystackWebhook('charge.success', txData);
+    }
+
+    const payment = await this.paymentModel.findOne({ paystackReference: reference });
+    const meta = (payment?.metadata as any) ?? {};
+    return {
+      status: txData?.status ?? 'unknown',
+      tier: meta.tier ?? '',
+      billingCycle: meta.billingCycle ?? '',
+    };
+  }
+
   // ── Paystack Webhook ──────────────────────────────────────────────────
+
+  verifyPaystackSignature(rawBody: string, signature: string): boolean {
+    const secretKey = this.configService.get<string>('PAYSTACK_SECRET_KEY') ?? '';
+    const hash = crypto.createHmac('sha512', secretKey).update(rawBody).digest('hex');
+    return hash === signature;
+  }
 
   async handlePaystackWebhook(event: string, data: any): Promise<void> {
     if (event === 'charge.success') {

@@ -78,6 +78,13 @@ export class AiService {
   private anthropic: Anthropic;
   private openai: OpenAI;
 
+  private static readonly UNIVERSAL_STYLE = `Subject: Genderless, faceless humanoid mannequin with highly muscular, anatomically exaggerated physique. No facial features, hair, clothing, skin texture, pores, veins, or anatomical details like nipples or navels. Pure sculpted muscle topology.
+Material and Color: Warm off-white to light beige material, like polished ceramic or marble with subtle warmth. NOT pure white. Soft brownish undertones, natural slightly tan appearance, matte finish. No glossiness or specularity.
+Lighting: Soft key light from above and slightly forward, gentle shadow definition under muscle groups. Cool cyan or blue rim light along silhouette edges. Soft shadows, never harsh. Subtle subsurface softness for depth.
+Environment: Seamless dark charcoal-to-black gradient backdrop with vignette effect. Figure on flat matte black platform. No props, equipment, or distracting elements.
+Camera: Three-quarter view, eye-level or slightly elevated. Full body in frame with breathing room. Sharp focus, no motion blur, no depth of field.
+Render Quality: Clean, hyper-realistic 3D aesthetic. PBR rendering style. Premium fitness app reference material — clinical, minimal, cinematic.`;
+
   constructor(
     private configService: ConfigService,
     @InjectModel(AiTokenUsage.name) private tokenUsageModel: Model<AiTokenUsageDocument>,
@@ -354,18 +361,20 @@ All 7 days required. Sunday = rest. Training days must have ≥4 exercises each.
       max_tokens: 250,
       messages: [{
         role: 'user',
-        content: `Write a single DALL-E image generation prompt (max 130 words) for a split-panel fitness reference illustration of: "${exerciseName}"${category ? ` (${category})` : ''}.
+        content: `Write a single DALL-E image generation prompt (max 180 words) for a split-panel fitness reference illustration of: "${exerciseName}"${category ? ` (${category})` : ''}.
 ${instructions ? `Instructions: ${instructions}` : ''}
 
-Requirements:
-- Two-panel side-by-side layout: left panel labeled "START", right panel labeled "END"
-- LEFT PANEL: describe the EXACT starting body position (limb angles, joint positions, spine alignment, foot placement)
-- RIGHT PANEL: describe the EXACT ending/peak-contraction body position for the same exercise
-- Fit athlete in proper form wearing athletic clothing, consistent appearance across both panels
-- Clean white background, bold instructional labels "START" and "END" on each panel
+Apply this universal visual style to both panels:
+${AiService.UNIVERSAL_STYLE}
+
+Layout requirements:
+- Two-panel side-by-side: left panel labeled "START", right panel labeled "END"
+- LEFT PANEL: exact starting body position (limb angles, joint positions, spine alignment, foot placement)
+- RIGHT PANEL: exact ending/peak-contraction body position
 - Side or 45-degree angle that best reveals the movement mechanics
-- High detail on correct muscle engagement and posture in each phase
-- Output ONLY the prompt text, no explanation or preamble`,
+- Bold instructional labels "START" and "END" on each panel
+
+Output ONLY the prompt text, no explanation or preamble`,
       }],
     });
 
@@ -374,7 +383,7 @@ Requirements:
     }
 
     const prompt = (promptMsg.content[0] as any).text?.trim() ||
-      `Split-panel instructional fitness illustration of "${exerciseName}"${category ? ` (${category})` : ''}. Two panels side by side: left panel labeled "START" showing athlete in starting position, right panel labeled "END" showing athlete at peak contraction. Fit athlete in athletic clothing, side-view, clean white background. Educational, photorealistic, focused on correct form.`;
+      `Split-panel fitness reference illustration of "${exerciseName}"${category ? ` (${category})` : ''}. Two panels: left "START" and right "END". Genderless faceless muscular mannequin, warm off-white matte ceramic material, seamless dark charcoal backdrop, cyan rim lighting, three-quarter view, hyper-realistic 3D PBR render.`;
 
     const response = await this.openai.images.generate({
       model: 'dall-e-3',
@@ -408,18 +417,21 @@ Requirements:
       max_tokens: 200,
       messages: [{
         role: 'user',
-        content: `Write a single short video generation prompt (max 120 words) for a text-to-video AI model showing the exercise: "${exercise.name}".
+        content: `Write a single short video generation prompt (max 140 words) for a text-to-video AI model showing the exercise: "${exercise.name}".
 ${exercise.category ? `Category: ${exercise.category}` : ''}
 ${exercise.instructions ? `Instructions: ${exercise.instructions}` : ''}
 ${exercise.notes ? `Notes: ${exercise.notes}` : ''}
 
-Requirements:
-- Describe a fit male athlete in gym clothes inside a professional gym with dark moody lighting
-- Explicitly show the FULL movement cycle: starting position → mid-movement → ending position, looped smoothly
+Apply this universal visual style:
+${AiService.UNIVERSAL_STYLE}
+
+Movement requirements:
+- Show the FULL movement cycle: starting position → peak contraction → back to start, looped smoothly
 - Name the exact body position at start and end (e.g. "arms fully extended" → "elbows at 90 degrees" → back to "arms extended")
 - Choose the camera angle that best shows this movement (side view, front view, or 45-degree angle)
-- Slow-motion, 4K, cinematic
-- Output ONLY the prompt text, no explanation`,
+- Slow-motion, cinematic
+
+Output ONLY the prompt text, no explanation`,
       }],
     });
 
@@ -428,7 +440,7 @@ Requirements:
     }
 
     const prompt = (promptMsg.content[0] as any).text?.trim() ||
-      `Fit male athlete performing ${exercise.name} in a dark professional gym. Side-view camera. Slow motion showing complete movement from starting position through full range of motion and back to start. 4K cinematic lighting, educational fitness demonstration.`;
+      `Genderless faceless muscular mannequin performing ${exercise.name}. Warm off-white matte material. Seamless dark charcoal backdrop, cyan rim lighting. Three-quarter view, full body in frame. Slow motion full movement cycle from start to peak contraction and back. Hyper-realistic 3D PBR render, cinematic.`;
 
     // Submit the prediction — no 'Prefer: wait' since this runs in a background task
     // and minimax/video-01 takes 3–8 minutes (far beyond the sync wait limit)
@@ -831,7 +843,12 @@ If asked anything unrelated to fitness or exercise, politely decline and redirec
       max_tokens: 200,
       messages: [{
         role: 'user',
-        content: `Write a concise DALL-E image generation prompt (max 100 words) for a fitness-related image based on this request: "${prompt}". Make it photorealistic, high quality, fitness/gym themed. Output ONLY the prompt text.`,
+        content: `Write a concise DALL-E image generation prompt (max 150 words) for a fitness reference image based on this request: "${prompt}".
+
+Apply this universal visual style:
+${AiService.UNIVERSAL_STYLE}
+
+Output ONLY the prompt text.`,
       }],
     });
 
@@ -840,7 +857,7 @@ If asked anything unrelated to fitness or exercise, politely decline and redirec
     }
 
     const dallePrompt = (promptMsg.content[0] as any).text?.trim() ||
-      `Professional fitness photography: ${prompt}. High quality, gym setting, photorealistic.`;
+      `Fitness reference image: ${prompt}. Genderless faceless muscular mannequin, warm off-white matte ceramic material, seamless dark charcoal backdrop, cyan rim lighting, three-quarter view, hyper-realistic 3D PBR render.`;
 
     const response = await this.openai.images.generate({
       model: 'dall-e-3',
@@ -889,10 +906,30 @@ If asked anything unrelated to fitness or exercise, politely decline and redirec
       const replicateKey = this.configService.get<string>('REPLICATE_API_KEY') || process.env.REPLICATE_API_KEY;
       if (!replicateKey) throw new Error('REPLICATE_API_KEY is not configured');
 
+      const styledPromptMsg = await this.anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 200,
+        messages: [{
+          role: 'user',
+          content: `Rewrite this fitness video request as a text-to-video prompt (max 140 words) applying this universal style:
+${AiService.UNIVERSAL_STYLE}
+
+Show the FULL movement cycle: starting position → peak contraction → back to start, looped smoothly. Choose the best camera angle to reveal the movement.
+
+Original request: "${prompt}"
+
+Output ONLY the rewritten prompt text, no explanation.`,
+        }],
+      });
+      if (userId) {
+        this.trackTokens(userId, AiOperation.GENERATE_CHAT_VIDEO, 'claude-sonnet-4-6', styledPromptMsg.usage.input_tokens, styledPromptMsg.usage.output_tokens);
+      }
+      const styledPrompt = (styledPromptMsg.content[0] as any).text?.trim() || prompt;
+
       const response = await fetch('https://api.replicate.com/v1/models/minimax/video-01/predictions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${replicateKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: { prompt } }),
+        body: JSON.stringify({ input: { prompt: styledPrompt } }),
       });
 
       if (!response.ok) throw new Error(`Replicate API error: ${await response.text()}`);
@@ -947,7 +984,7 @@ If asked anything unrelated to fitness or exercise, politely decline and redirec
 
       throw new Error('Video generation timed out after 12 minutes');
     } catch (error) {
-      this.videoJobs.set(jobId, { status: 'failed', error: error.message, createdAt: Date.now() });
+      this.videoJobs.set(jobId, { status: 'failed', error: (error as Error).message, createdAt: Date.now() });
     }
   }
 

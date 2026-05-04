@@ -351,38 +351,13 @@ All 7 days required. Sunday = rest. Training days must have ≥4 exercises each.
     return (response.content[0] as { type: 'text'; text: string }).text;
   }
 
-  async generateExerciseImage(exerciseName: string, category?: string, _instructions?: string, userId?: string): Promise<string> {
+  async generateExerciseImage(exerciseName: string, category?: string, _instructions?: string, _userId?: string): Promise<string> {
     if (!this.openai) {
       throw new Error('OPENAI_API_KEY is not configured. Add it to generate exercise images.');
     }
 
-    // Use Claude to write a split-panel DALL-E prompt showing start and end positions
-    const promptMsg = await this.anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 250,
-      messages: [{
-        role: 'user',
-        content: `Write a DALL-E image generation prompt (max 160 words) for a two-panel fitness reference illustration of the exercise: "${exerciseName}"${category ? ` (${category})` : ''}.
-
-Apply this universal visual style to both panels:
-${AiService.UNIVERSAL_STYLE}
-
-Layout:
-- Two side-by-side panels with bold labels "START" and "END"
-- LEFT panel: the figure in the resting/beginning pose of the exercise
-- RIGHT panel: the figure at the peak/finish pose of the exercise
-- Camera angle that best reveals the movement
-
-Output ONLY the prompt text.`,
-      }],
-    });
-
-    if (userId) {
-      this.trackTokens(userId, AiOperation.GENERATE_EXERCISE_IMAGE_PROMPT, 'claude-sonnet-4-6', promptMsg.usage.input_tokens, promptMsg.usage.output_tokens);
-    }
-
-    const prompt = (promptMsg.content[0] as any).text?.trim() ||
-      `Split-panel fitness reference illustration of "${exerciseName}"${category ? ` (${category})` : ''}. Two panels: left "START" and right "END". Genderless faceless muscular mannequin, warm off-white matte ceramic material, seamless dark charcoal backdrop, cyan rim lighting, three-quarter view, hyper-realistic 3D PBR render.`;
+    const categoryLabel = category ? ` — ${category}` : '';
+    const prompt = `Two-panel 3D product render of a plastic fitness collectible figurine demonstrating the ${exerciseName}${categoryLabel} exercise. LEFT panel labeled "START": figurine in the starting position. RIGHT panel labeled "END": figurine in the finishing position. Off-white matte unglazed ceramic surface, seamless dark charcoal backdrop, cool cyan rim light on silhouette, three-quarter view, sharp focus. Clean premium fitness app reference image.`;
 
     const response = await this.openai.images.generate({
       model: 'dall-e-3',

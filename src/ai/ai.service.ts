@@ -78,12 +78,13 @@ export class AiService {
   private anthropic: Anthropic;
   private openai: OpenAI;
 
-  private static readonly UNIVERSAL_STYLE = `Subject: A hyper-realistic 3D CGI fitness reference mannequin. Genderless, completely featureless smooth surface — no face, no hair, no clothing or fabric of any kind. Heavily sculpted muscle definition clearly visible as raised surface topology on the figure, like a high-detail anatomical sculpture or CAD model.
-Material: Warm off-white to light beige matte finish, like unglazed ceramic or matte porcelain with subtle warm brownish undertones. Completely matte — zero gloss, zero specularity, zero reflections.
-Lighting: Soft key light from above-forward creating gentle shadow depth on muscle surface topology. Cool cyan rim light along silhouette edges. Soft fill, no harsh shadows.
-Background: Seamless dark charcoal-to-black gradient backdrop, subtle vignette. Figure on a flat matte black platform. Nothing else in frame — no props, no equipment, no text overlays.
-Camera: Three-quarter view, eye-level or slightly elevated. Full figure in frame with breathing room. Crisp sharp focus throughout.
-Style: Premium 3D render, PBR materials, clinical fitness app reference aesthetic — minimal and cinematic.`;
+  private static readonly UNIVERSAL_STYLE = `Style: Premium 3D render of a highly detailed plastic fitness action figure — like a museum-quality anatomical sports collectible or resin figurine. NOT a human. A smooth sculptural toy/model object with deeply defined raised muscle groups visible across its surface.
+Surface: Warm off-white to light beige matte paint, like an unglazed ceramic figurine with subtle warm beige-tan undertones. Completely matte — no gloss, no sheen, no reflections.
+Head: Completely smooth, featureless, rounded — like a blank mannequin head. No face, no features, no hair.
+Lighting: Soft key light from above-forward with gentle shadow depth on the raised surface relief. Cool cyan rim light tracing the silhouette edge. Soft fill shadows.
+Background: Seamless dark charcoal-to-black gradient, subtle vignette. Figurine standing on a flat matte black base. Nothing else in frame.
+Camera: Three-quarter view, eye-level or slightly elevated. Full figure in frame. Sharp focus throughout.
+Render: Clean hyper-realistic 3D product render. PBR materials. Clinical, minimal, cinematic — premium fitness app reference imagery.`;
 
   constructor(
     private configService: ConfigService,

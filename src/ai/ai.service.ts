@@ -351,7 +351,7 @@ All 7 days required. Sunday = rest. Training days must have ≥4 exercises each.
     return (response.content[0] as { type: 'text'; text: string }).text;
   }
 
-  async generateExerciseImage(exerciseName: string, category?: string, instructions?: string, userId?: string): Promise<string> {
+  async generateExerciseImage(exerciseName: string, category?: string, _instructions?: string, userId?: string): Promise<string> {
     if (!this.openai) {
       throw new Error('OPENAI_API_KEY is not configured. Add it to generate exercise images.');
     }
@@ -362,20 +362,18 @@ All 7 days required. Sunday = rest. Training days must have ≥4 exercises each.
       max_tokens: 250,
       messages: [{
         role: 'user',
-        content: `Write a single DALL-E image generation prompt (max 180 words) for a split-panel fitness reference illustration of: "${exerciseName}"${category ? ` (${category})` : ''}.
-${instructions ? `Instructions: ${instructions}` : ''}
+        content: `Write a DALL-E image generation prompt (max 160 words) for a two-panel fitness reference illustration of the exercise: "${exerciseName}"${category ? ` (${category})` : ''}.
 
 Apply this universal visual style to both panels:
 ${AiService.UNIVERSAL_STYLE}
 
-Layout requirements:
-- Two-panel side-by-side: left panel labeled "START", right panel labeled "END"
-- LEFT PANEL: exact starting body position (limb angles, joint positions, spine alignment, foot placement)
-- RIGHT PANEL: exact ending/peak-contraction body position
-- Side or 45-degree angle that best reveals the movement mechanics
-- Bold instructional labels "START" and "END" on each panel
+Layout:
+- Two side-by-side panels with bold labels "START" and "END"
+- LEFT panel: the figure in the resting/beginning pose of the exercise
+- RIGHT panel: the figure at the peak/finish pose of the exercise
+- Camera angle that best reveals the movement
 
-Output ONLY the prompt text, no explanation or preamble`,
+Output ONLY the prompt text.`,
       }],
     });
 

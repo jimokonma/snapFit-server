@@ -761,11 +761,207 @@ If asked anything unrelated to fitness or exercise, politely decline and redirec
     return replyText;
   }
 
-  async getChatHistory(userId: string): Promise<Array<{ role: string; content: string; createdAt: Date }>> {
+  // ── In-memory video job store ──────────────────────────────────────────────
+  private readonly videoJobs = new Map<string, {
+    status: 'pending' | 'done' | 'failed';
+    videoUrl?: string;
+    error?: string;
+    createdAt: number;
+  }>();
+
+  async chatWithImage(
+    imageBase64: string,
+    mediaType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+    message: string,
+    userContext?: string,
+    userId?: string,
+  ): Promise<string> {
+    const userSection = userContext
+      ? `\n\nYou are coaching this specific user:\n${userContext}`
+      : '';
+
+    const response = await this.anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      system: `You are SnapFit AI, a specialized fitness coach. Analyze the user's image and provide expert fitness feedback. This could be about their form, physique, food/nutrition, gym setup, or any fitness-related topic. Keep responses practical, encouraging, and actionable. Use plain text only — no markdown.${userSection}`,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: mediaType, data: imageBase64 },
+            },
+            {
+              type: 'text',
+              text: message || 'What do you see in this image? Give me fitness-related feedback.',
+            },
+          ],
+        },
+      ],
+    });
+
+    if (userId) {
+      this.trackTokens(userId, AiOperation.CHAT_IMAGE, 'claude-sonnet-4-6', response.usage.input_tokens, response.usage.output_tokens);
+    }
+
+    const content = response.content[0];
+    if (content.type !== 'text') throw new Error('Unexpected response type');
+    const replyText = content.text;
+
+    if (userId) {
+      const user = await this.userModel.findById(userId).select('saveChatHistory').lean();
+      if (user?.saveChatHistory !== false) {
+        await this.chatMessageModel.insertMany([
+          { userId, role: 'user', content: message ? `📷 ${message}` : '📷 [Photo]' },
+          { userId, role: 'assistant', content: replyText },
+        ]);
+      }
+    }
+
+    return replyText;
+  }
+
+  async generateChatImage(prompt: string, userId?: string): Promise<{ imageUrl: string; caption: string }> {
+    if (!this.openai) throw new Error('OPENAI_API_KEY is not configured');
+
+    // Use Claude to craft a DALL-E prompt suited to fitness
+    const promptMsg = await this.anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 200,
+      messages: [{
+        role: 'user',
+        content: `Write a concise DALL-E image generation prompt (max 100 words) for a fitness-related image based on this request: "${prompt}". Make it photorealistic, high quality, fitness/gym themed. Output ONLY the prompt text.`,
+      }],
+    });
+
+    if (userId) {
+      this.trackTokens(userId, AiOperation.GENERATE_CHAT_IMAGE, 'claude-sonnet-4-6', promptMsg.usage.input_tokens, promptMsg.usage.output_tokens);
+    }
+
+    const dallePrompt = (promptMsg.content[0] as any).text?.trim() ||
+      `Professional fitness photography: ${prompt}. High quality, gym setting, photorealistic.`;
+
+    const response = await this.openai.images.generate({
+      model: 'dall-e-3',
+      prompt: dallePrompt,
+      size: '1024x1024',
+      quality: 'standard',
+      n: 1,
+    });
+
+    const imageUrl = response.data[0].url!;
+    const caption = `Here's the image I generated for you!`;
+
+    if (userId) {
+      const user = await this.userModel.findById(userId).select('saveChatHistory').lean();
+      if (user?.saveChatHistory !== false) {
+        await this.chatMessageModel.insertMany([
+          { userId, role: 'user', content: `✨ Generate image: ${prompt}` },
+          { userId, role: 'assistant', content: caption, mediaUrl: imageUrl, mediaType: 'generated-image' },
+        ]);
+      }
+    }
+
+    return { imageUrl, caption };
+  }
+
+  async startVideoGeneration(prompt: string, userId?: string): Promise<string> {
+    const jobId = `vid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    this.videoJobs.set(jobId, { status: 'pending', createdAt: Date.now() });
+
+    // Fire-and-forget background generation
+    this.runVideoGeneration(jobId, prompt, userId).catch(() => {
+      this.videoJobs.set(jobId, { status: 'failed', error: 'Generation failed', createdAt: Date.now() });
+    });
+
+    // Clean up jobs older than 2 hours
+    const TWO_HOURS = 7_200_000;
+    for (const [id, job] of this.videoJobs) {
+      if (Date.now() - job.createdAt > TWO_HOURS) this.videoJobs.delete(id);
+    }
+
+    return jobId;
+  }
+
+  private async runVideoGeneration(jobId: string, prompt: string, userId?: string): Promise<void> {
+    try {
+      const replicateKey = this.configService.get<string>('REPLICATE_API_KEY') || process.env.REPLICATE_API_KEY;
+      if (!replicateKey) throw new Error('REPLICATE_API_KEY is not configured');
+
+      const response = await fetch('https://api.replicate.com/v1/models/minimax/video-01/predictions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${replicateKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: { prompt } }),
+      });
+
+      if (!response.ok) throw new Error(`Replicate API error: ${await response.text()}`);
+      const data: any = await response.json();
+
+      if (data.status === 'succeeded' && data.output) {
+        const output = data.output;
+        const videoUrl = Array.isArray(output) ? output[0] : output;
+        this.videoJobs.set(jobId, { status: 'done', videoUrl, createdAt: Date.now() });
+        if (userId) {
+          const user = await this.userModel.findById(userId).select('saveChatHistory').lean();
+          if (user?.saveChatHistory !== false) {
+            await this.chatMessageModel.create({
+              userId, role: 'assistant',
+              content: "Here's your generated video!",
+              mediaUrl: videoUrl,
+              mediaType: 'generated-video',
+            });
+          }
+        }
+        return;
+      }
+
+      if (!data.urls?.get) throw new Error('No polling URL from Replicate');
+
+      for (let i = 0; i < 90; i++) {
+        await new Promise(r => setTimeout(r, 8000));
+        const poll = await fetch(data.urls.get, { headers: { 'Authorization': `Bearer ${replicateKey}` } });
+        const pollData: any = await poll.json();
+
+        if (pollData.status === 'succeeded') {
+          const output = pollData.output;
+          const videoUrl = Array.isArray(output) ? output[0] : output;
+          this.videoJobs.set(jobId, { status: 'done', videoUrl, createdAt: Date.now() });
+          if (userId) {
+            const user = await this.userModel.findById(userId).select('saveChatHistory').lean();
+            if (user?.saveChatHistory !== false) {
+              await this.chatMessageModel.create({
+                userId, role: 'assistant',
+                content: "Here's your generated video!",
+                mediaUrl: videoUrl,
+                mediaType: 'generated-video',
+              });
+            }
+          }
+          return;
+        }
+        if (pollData.status === 'failed' || pollData.status === 'canceled') {
+          throw new Error(`Video generation failed: ${pollData.error || pollData.status}`);
+        }
+      }
+
+      throw new Error('Video generation timed out after 12 minutes');
+    } catch (error) {
+      this.videoJobs.set(jobId, { status: 'failed', error: error.message, createdAt: Date.now() });
+    }
+  }
+
+  getVideoJobStatus(jobId: string): { status: string; videoUrl?: string; error?: string } {
+    const job = this.videoJobs.get(jobId);
+    if (!job) return { status: 'failed', error: 'Job not found or expired' };
+    return { status: job.status, videoUrl: job.videoUrl, error: job.error };
+  }
+
+  async getChatHistory(userId: string): Promise<Array<{ role: string; content: string; mediaUrl?: string; mediaType?: string; createdAt: Date }>> {
     const docs = await this.chatMessageModel
       .find({ userId })
       .sort({ createdAt: 1 })
-      .select('role content createdAt')
+      .select('role content mediaUrl mediaType createdAt')
       .lean();
     return docs as any[];
   }

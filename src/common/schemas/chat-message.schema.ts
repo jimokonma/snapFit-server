@@ -13,6 +13,12 @@ export class ChatMessage {
 
   @Prop({ required: true })
   content: string;
+
+  @Prop({ required: false })
+  mediaUrl?: string;
+
+  @Prop({ required: false, enum: ['generated-image', 'generated-video'] })
+  mediaType?: string;
 }
 
 export const ChatMessageSchema = SchemaFactory.createForClass(ChatMessage);

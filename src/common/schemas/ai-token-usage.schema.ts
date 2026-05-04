@@ -17,6 +17,9 @@ export enum AiOperation {
   GENERATE_WORKOUT_WITH_OPTIONS = 'generate_workout_with_options',
   NUTRITION_ANALYSIS = 'nutrition_analysis',
   MEAL_SUGGESTION = 'meal_suggestion',
+  CHAT_IMAGE = 'chat_image',
+  GENERATE_CHAT_IMAGE = 'generate_chat_image',
+  GENERATE_CHAT_VIDEO = 'generate_chat_video',
 }
 
 export enum AiProvider {

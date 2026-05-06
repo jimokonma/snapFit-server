@@ -266,6 +266,70 @@ Respond with ONLY this JSON:
     );
   }
 
+  private buildSplitStructure(daysPerWeek: number, level: string): { name: string; schedule: string; rules: string } {
+    const isBeginner = level === 'beginner' || level === 'novice';
+
+    if (daysPerWeek <= 2) {
+      return {
+        name: 'Full Body',
+        schedule: `${daysPerWeek} training days — Full Body each day, with rest days between sessions`,
+        rules: 'Each session: compound movements hitting chest, back, shoulders, legs, and core. Keep volume moderate per muscle group.',
+      };
+    }
+
+    if (daysPerWeek === 3) {
+      if (isBeginner) {
+        return {
+          name: 'Full Body 3x/week',
+          schedule: 'Day 1 (Monday): Full Body | Day 2 (Wednesday): Full Body | Day 3 (Friday): Full Body | Rest: Tue, Thu, Sat, Sun',
+          rules: 'Each day: balanced compound movements across ALL muscle groups (chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, core). Vary the specific exercises across the 3 days to avoid exact repetition.',
+        };
+      }
+      return {
+        name: 'Push / Pull / Legs',
+        schedule: 'Day 1 (Monday): Push | Day 2 (Wednesday): Pull | Day 3 (Friday): Legs | Rest: Tue, Thu, Sat, Sun',
+        rules: 'Push day — ONLY: Chest, Shoulders (Deltoids), Triceps. Pull day — ONLY: Back (Lats/Traps/Rhomboids), Biceps. Legs day — ONLY: Quads, Hamstrings, Glutes, Calves, Core. NEVER mix Push and Pull muscle groups on the same day.',
+      };
+    }
+
+    if (daysPerWeek === 4) {
+      if (isBeginner) {
+        return {
+          name: 'Full Body 4x/week',
+          schedule: 'Day 1 (Monday): Full Body | Day 2 (Tuesday): Full Body | Rest (Wednesday) | Day 3 (Thursday): Full Body | Day 4 (Friday): Full Body | Rest: Sat, Sun',
+          rules: 'Each day: compound movements hitting all major muscle groups. Vary exercises between sessions. Keep intensity moderate and prioritise form.',
+        };
+      }
+      return {
+        name: 'Upper / Lower Split',
+        schedule: 'Day 1 (Monday): Upper Body | Day 2 (Tuesday): Lower Body | Rest (Wednesday) | Day 3 (Thursday): Upper Body | Day 4 (Friday): Lower Body | Rest: Sat, Sun',
+        rules: 'Upper days — Chest, Back, Shoulders, Biceps, Triceps (balanced push and pull volume). Lower days — Quads, Hamstrings, Glutes, Calves, Core. Never put lower-body exercises on Upper day or upper-body exercises on Lower day. Vary exercises between Upper Day 1 and Upper Day 2 (e.g. Flat Bench on Day 1, Incline Bench on Day 3).',
+      };
+    }
+
+    if (daysPerWeek === 5) {
+      if (isBeginner) {
+        return {
+          name: 'Upper / Lower + Active Recovery',
+          schedule: 'Day 1 (Monday): Upper Body | Day 2 (Tuesday): Lower Body | Rest (Wednesday) | Day 3 (Thursday): Upper Body | Day 4 (Friday): Lower Body | Day 5 (Saturday): Core & Mobility | Rest: Sunday',
+          rules: 'Upper days: Chest, Back, Shoulders, Biceps, Triceps. Lower days: Quads, Hamstrings, Glutes, Calves, Core. Saturday: core, abs, stretching and mobility only.',
+        };
+      }
+      return {
+        name: 'Push / Pull / Legs / Push / Pull',
+        schedule: 'Day 1 (Monday): Push | Day 2 (Tuesday): Pull | Day 3 (Wednesday): Legs | Rest (Thursday) | Day 4 (Friday): Push | Day 5 (Saturday): Pull | Rest: Sunday',
+        rules: 'Push days — ONLY: Chest, Shoulders, Triceps. Pull days — ONLY: Back, Biceps. Legs day — ONLY: Quads, Hamstrings, Glutes, Calves + Core. Use different exercises between the two Push days and between the two Pull days (e.g. Flat Bench → Incline Bench; Barbell Row → Cable Row). NEVER mix push and pull muscles on the same day.',
+      };
+    }
+
+    // 6+ days
+    return {
+      name: 'Push / Pull / Legs × 2',
+      schedule: 'Day 1 (Monday): Push | Day 2 (Tuesday): Pull | Day 3 (Wednesday): Legs | Day 4 (Thursday): Push | Day 5 (Friday): Pull | Day 6 (Saturday): Legs | Rest: Sunday',
+      rules: 'Push days — ONLY: Chest, Shoulders, Triceps. Pull days — ONLY: Back, Biceps. Legs days — ONLY: Quads, Hamstrings, Glutes, Calves + Core. Alternate exercise variations between Day 1 and Day 4 Push sessions, and between Day 2 and Day 5 Pull sessions. NEVER mix push and pull muscles on the same day.',
+    };
+  }
+
   async generateWorkoutPlan(
     userProfile: {
       age?: number;
@@ -284,11 +348,12 @@ Respond with ONLY this JSON:
     const daysPerWeek = userProfile.daysPerWeek || 4;
     const level = userProfile.experienceLevel || 'beginner';
     const goal = userProfile.fitnessGoal || 'general_fitness';
+    const split = this.buildSplitStructure(daysPerWeek, level);
 
     const response = await this.anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 3500,
-      system: `You are an expert personal trainer. Generate safe, periodized 7-day workout plans tailored to the user's body analysis and goals. Each training day needs at least 4 exercises. Respond only with valid JSON.`,
+      system: `You are an expert personal trainer. Generate safe, periodized 7-day workout plans using proper training splits. Each training day needs at least 4 exercises. NEVER mix incompatible muscle groups on the same day. Respond only with valid JSON.`,
       messages: [
         {
           role: 'user',
@@ -298,7 +363,13 @@ Profile: age=${userProfile.age}, height=${userProfile.height}cm, weight=${userPr
 
 Body analysis: ${bodyAnalysis.overallAssessment} | Priority areas: ${bodyAnalysis.bodyComposition.priorityAreas.join(', ')} | Improve: ${bodyAnalysis.areasForImprovement.join(', ')}
 
+TRAINING SPLIT: ${split.name}
+WEEKLY SCHEDULE: ${split.schedule}
+MUSCLE GROUP RULES: ${split.rules}
+
 Intensity: beginner=10-15 reps/90-120s rest, intermediate=8-12 reps/60-90s, advanced=3-12 reps/45-75s
+
+IMPORTANT: The "focus" field must describe the day type exactly (e.g. "Push — Chest, Shoulders & Triceps" or "Pull — Back & Biceps" or "Legs — Quads, Hamstrings & Glutes" or "Upper Body" or "Lower Body" or "Full Body"). Never write vague focuses like "Strength Training" or mix incompatible groups.
 
 Return ONLY JSON matching this schema exactly:
 {
@@ -528,18 +599,20 @@ Provide a practical home-friendly alternative. Respond with ONLY this JSON:
     const level = userProfile.experienceLevel || 'beginner';
     const profileGoal = userProfile.fitnessGoal || 'general_fitness';
     const goal = options.exerciseFocus || profileGoal;
+    const split = this.buildSplitStructure(daysPerWeek, level);
+
     const homeNote = options.homeWorkout
       ? '\n\nIMPORTANT: ALL exercises MUST be bodyweight-only. No gym equipment allowed. Use floor, walls, chairs, and body weight only. This is a home workout plan.'
       : '';
     const focusNote =
       options.exerciseFocus && options.exerciseFocus !== profileGoal
-        ? `\n\nEXERCISE FOCUS OVERRIDE: The user has requested to specifically focus on "${options.exerciseFocus}". Design the entire plan around this focus. If "${options.exerciseFocus}" is not a recognizable fitness goal or workout style, ignore the override and fall back to their profile goal: ${profileGoal}.`
+        ? `\n\nEXERCISE FOCUS OVERRIDE: The user has requested to specifically focus on "${options.exerciseFocus}". Design the entire plan around this focus while still respecting the training split structure. If "${options.exerciseFocus}" is not a recognizable fitness goal or workout style, ignore the override and fall back to their profile goal: ${profileGoal}.`
         : '';
 
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 6000,
-      system: `You are an expert personal trainer creating personalized 7-day workout plans. Generate safe, effective, periodized plans tailored to the user's body analysis and goals. Each training day MUST include at least 4 exercises. For each exercise include a concise 1-2 sentence "description" explaining what the exercise is and its primary benefit. Respond only with valid JSON.`,
+      system: `You are an expert personal trainer creating personalized 7-day workout plans using proper training splits. Generate safe, effective, periodized plans. CRITICAL RULE: Each training day must target ONLY the muscle groups designated for that day type — never mix incompatible groups. Each training day MUST include at least 4 exercises. For each exercise include a concise 1-2 sentence "description" and a "notes" tip. Respond only with valid JSON.`,
       messages: [
         {
           role: 'user',
@@ -553,7 +626,7 @@ User Profile:
 - Experience Level: ${level}
 - Workout History: ${userProfile.workoutHistory || 'Limited'}
 - Fitness Goal: ${goal}
-- Days Available Per Week: ${daysPerWeek} (schedule ${daysPerWeek} training days, rest the others)
+- Days Available Per Week: ${daysPerWeek}
 - Injuries/Limitations: ${userProfile.injuries || 'None'}
 
 Body Analysis:
@@ -564,9 +637,14 @@ Body Analysis:
 - Strengths: ${bodyAnalysis.strengths.join(', ')}
 - Areas for Improvement: ${bodyAnalysis.areasForImprovement.join(', ')}
 
-IMPORTANT: Each training day must have at least 4 exercises (rest days have none).
+━━━ TRAINING SPLIT ━━━
+Split: ${split.name}
+Schedule: ${split.schedule}
+Rules: ${split.rules}
 
-Respond with ONLY this JSON (all 7 days present, Sunday always rest):
+CRITICAL: The "focus" field must exactly name the day type with its muscle groups (e.g. "Push — Chest, Shoulders & Triceps", "Pull — Back & Biceps", "Legs — Quads, Hamstrings & Glutes", "Upper Body", "Lower Body", "Full Body"). Never use vague labels like "Strength Training". Never put a back exercise on a Push day, never put a chest exercise on a Pull day, never put upper-body exercises on a Legs day.
+
+Respond with ONLY valid JSON (all 7 days, Sunday always rest):
 {
   "title": "Your Personalized Fitness Plan",
   "description": "2 sentence description",
@@ -574,14 +652,14 @@ Respond with ONLY this JSON (all 7 days present, Sunday always rest):
     {
       "dayNumber": 1,
       "dayName": "Monday",
-      "focus": "Upper Body Strength",
+      "focus": "Push — Chest, Shoulders & Triceps",
       "isRestDay": false,
       "estimatedDuration": 60,
       "exercises": [
-        { "name": "Bench Press", "sets": 4, "reps": "6-8", "restTime": "90s", "description": "A compound push movement targeting chest, shoulders, and triceps through a full press from chest to full arm extension.", "notes": "Keep shoulder blades retracted" },
-        { "name": "Bent-Over Row", "sets": 4, "reps": "6-8", "restTime": "90s", "description": "A compound pull movement that builds thickness across the upper back, lats, and rear delts.", "notes": "Maintain neutral spine throughout" },
-        { "name": "Overhead Press", "sets": 3, "reps": "8-10", "restTime": "75s", "description": "A vertical pressing exercise that develops shoulder strength and stability while engaging the core.", "notes": "Brace core, avoid excessive arch" },
-        { "name": "Tricep Dips", "sets": 3, "reps": "10-12", "restTime": "60s", "description": "An isolation movement that targets the triceps and helps build arm definition and pressing power.", "notes": "Keep elbows tracking back, not flaring out" }
+        { "name": "Bench Press", "sets": 4, "reps": "6-8", "restTime": "90s", "description": "Compound chest press targeting pectorals, anterior deltoids, and triceps.", "notes": "Keep shoulder blades retracted and planted on bench" },
+        { "name": "Overhead Press", "sets": 3, "reps": "8-10", "restTime": "75s", "description": "Vertical pressing movement that builds shoulder strength and core stability.", "notes": "Brace core, avoid excessive lumbar arch" },
+        { "name": "Incline Dumbbell Flye", "sets": 3, "reps": "10-12", "restTime": "60s", "description": "Isolation movement stretching and contracting the upper chest fibres.", "notes": "Slight bend in elbows throughout, control the descent" },
+        { "name": "Tricep Rope Pushdown", "sets": 3, "reps": "12-15", "restTime": "60s", "description": "Cable isolation exercise targeting all three heads of the triceps.", "notes": "Lock elbows at sides, fully extend at bottom" }
       ]
     }
   ],

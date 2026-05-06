@@ -294,6 +294,23 @@ export class BodyAnalysisService {
       fitnessGoal,
     );
 
-    return { ...comparison, firstRecord, latestRecord, daysBetween };
+    const toSignedRecord = (record: BodyAnalysisRecordDocument) => {
+      const obj: any = record.toObject ? record.toObject() : { ...record };
+      if (obj.photoUrls) {
+        const signed: Record<string, string> = {};
+        for (const [key, publicId] of Object.entries(obj.photoUrls as Record<string, string>)) {
+          if (publicId) signed[key] = this.mediaService.generateSignedUrl(publicId);
+        }
+        obj.photoUrls = signed;
+      }
+      return obj;
+    };
+
+    return {
+      ...comparison,
+      firstRecord: toSignedRecord(firstRecord),
+      latestRecord: toSignedRecord(latestRecord),
+      daysBetween,
+    };
   }
 }

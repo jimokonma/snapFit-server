@@ -180,7 +180,7 @@ export class WorkoutsService {
   async generateExerciseVideo(exerciseId: string, userId: string): Promise<WorkoutDocument> {
     // Fail fast — surface missing API key immediately rather than silently going to 'failed'
     const replicateKey = process.env.REPLICATE_API_KEY;
-    if (!replicateKey || replicateKey === 'your_replicate_api_key_here') {
+    if (!replicateKey || replicateKey.startsWith('your_')) {
       throw new Error('Video generation is not configured. Add REPLICATE_API_KEY to the server environment (get a free token at replicate.com).');
     }
 

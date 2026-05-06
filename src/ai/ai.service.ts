@@ -81,6 +81,8 @@ export class AiService {
   private static readonly UNIVERSAL_STYLE = `Style: Premium 3D render of a highly detailed plastic fitness action figure — like a museum-quality anatomical sports collectible or resin figurine. NOT a human. A smooth sculptural toy/model object with deeply defined raised muscle groups visible across its surface.
 Surface: Warm off-white to light beige matte paint, like an unglazed ceramic figurine with subtle warm beige-tan undertones. Completely matte — no gloss, no sheen, no reflections.
 Head: Completely smooth, featureless, rounded — like a blank mannequin head. No face, no features, no hair.
+Muscle Activation: The primary muscles targeted by the exercise glow in vivid neon green — a luminous anatomical highlight rendered directly on the muscle surface, like a body-mapping activation overlay. The green maps precisely to the worked muscle group (e.g. pectorals for chest press, quadriceps for squat, latissimus dorsi for lat pulldown). Secondary stabilizing muscles appear at a lower green intensity. All other body surfaces remain the standard warm beige-tan matte finish.
+Movement Arrows: Bright neon green curved arrows overlay the figurine to indicate the direction and arc of motion — showing the movement path through each phase of the exercise.
 Lighting: Soft key light from above-forward with gentle shadow depth on the raised surface relief. Cool cyan rim light tracing the silhouette edge. Soft fill shadows.
 Background: Seamless dark charcoal-to-black gradient, subtle vignette. Figurine standing on a flat matte black base. Nothing else in frame.
 Camera: Three-quarter view, eye-level or slightly elevated. Full figure in frame. Sharp focus throughout.
@@ -428,7 +430,7 @@ All 7 days required. Sunday = rest. Training days must have ≥4 exercises each.
     }
 
     const categoryLabel = category ? ` — ${category}` : '';
-    const prompt = `Two-panel 3D product render of a plastic fitness collectible figurine demonstrating the ${exerciseName}${categoryLabel} exercise. LEFT panel labeled "START": figurine in the starting position. RIGHT panel labeled "END": figurine in the finishing position. Off-white matte unglazed ceramic surface, seamless dark charcoal backdrop, cool cyan rim light on silhouette, three-quarter view, sharp focus. Clean premium fitness app reference image.`;
+    const prompt = `Two-panel 3D product render demonstrating the ${exerciseName}${categoryLabel} exercise. LEFT panel labeled "START": figurine in the starting position. RIGHT panel labeled "END": figurine at peak contraction. In both panels, the primary target muscles are highlighted in vivid neon green as an anatomical activation map on the figurine surface, and bright neon green curved arrows show the direction and arc of motion. ${AiService.UNIVERSAL_STYLE} Clean premium fitness app reference image.`;
 
     const response = await this.openai.images.generate({
       model: 'dall-e-3',

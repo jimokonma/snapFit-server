@@ -125,6 +125,52 @@ export class MediaService {
     });
   }
 
+  /**
+   * Returns the cached Cloudinary URL for an exercise image if it exists, or null.
+   * Uses a deterministic public_id based on the normalised exercise name so all users
+   * share a single copy of each exercise image.
+   */
+  async getCachedExerciseImage(exerciseName: string): Promise<string | null> {
+    const isConfigured = !!this.configService.get<string>('CLOUDINARY_CLOUD_NAME');
+    if (!isConfigured) return null;
+    try {
+      const publicId = this.exercisePublicId(exerciseName);
+      const result = await cloudinary.api.resource(publicId, { resource_type: 'image' });
+      return result.secure_url as string;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Uploads a DALL-E URL to Cloudinary under a deterministic public_id so subsequent
+   * requests for the same exercise name return the cached copy without hitting DALL-E.
+   */
+  async uploadAndCacheExerciseImage(url: string, exerciseName: string): Promise<string> {
+    const isConfigured = !!this.configService.get<string>('CLOUDINARY_CLOUD_NAME');
+    if (!isConfigured) return url;
+
+    const publicId = this.exercisePublicId(exerciseName);
+    return new Promise((resolve, reject) => {
+      cloudinary.uploader.upload(
+        url,
+        { public_id: publicId, resource_type: 'image', overwrite: false },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result.secure_url);
+        },
+      );
+    });
+  }
+
+  private exercisePublicId(exerciseName: string): string {
+    const slug = exerciseName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    return `snapfit/exercise-cache/${slug}`;
+  }
+
   async deleteMedia(publicIdOrUrl: string, resourceType: 'image' | 'video' = 'image'): Promise<void> {
     const publicId = publicIdOrUrl?.startsWith('http')
       ? this.extractPublicIdFromUrl(publicIdOrUrl)

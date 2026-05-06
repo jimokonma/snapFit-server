@@ -155,12 +155,22 @@ export class WorkoutsService {
     if (!found) throw new NotFoundException('Exercise not found');
 
     const { exercise } = found;
+
+    // Return cached Cloudinary image immediately if it exists for this exercise name.
+    // All users share the same cached copy — no redundant DALL-E calls.
+    const cached = await this.mediaService.getCachedExerciseImage(exercise.name);
+    if (cached) {
+      exercise.instructionImageUrl = cached;
+      return workout.save();
+    }
+
+    // Cache miss — generate with DALL-E then store permanently under a deterministic public_id.
     const temporaryUrl = await this.aiService.generateExerciseImage(exercise.name, (exercise as any).category, (exercise as any).instructions);
 
-    // Upload to Cloudinary for permanent storage; fall back to DALL-E URL if not configured
     try {
-      exercise.instructionImageUrl = await this.mediaService.uploadFromUrl(temporaryUrl, 'snapfit/exercises');
+      exercise.instructionImageUrl = await this.mediaService.uploadAndCacheExerciseImage(temporaryUrl, exercise.name);
     } catch {
+      // Cloudinary upload failed — still use the temporary DALL-E URL so the user isn't blocked.
       exercise.instructionImageUrl = temporaryUrl;
     }
 
@@ -168,6 +178,12 @@ export class WorkoutsService {
   }
 
   async generateExerciseVideo(exerciseId: string, userId: string): Promise<WorkoutDocument> {
+    // Fail fast — surface missing API key immediately rather than silently going to 'failed'
+    const replicateKey = process.env.REPLICATE_API_KEY;
+    if (!replicateKey || replicateKey === 'your_replicate_api_key_here') {
+      throw new Error('Video generation is not configured. Add REPLICATE_API_KEY to the server environment (get a free token at replicate.com).');
+    }
+
     const workouts = await this.workoutModel.find({ userId: new Types.ObjectId(userId) }).sort({ createdAt: -1 }).limit(1);
     const workout = workouts[0];
     if (!workout) throw new NotFoundException('No workout found');
@@ -181,7 +197,7 @@ export class WorkoutsService {
 
     // Run generation in background — does not block the HTTP response
     this.runVideoGenerationInBackground(workout._id.toString(), exerciseId).catch(err =>
-      console.error('Background video generation error:', err),
+      console.error('[VideoGen] Unhandled background error:', err),
     );
 
     return saved;
@@ -208,7 +224,8 @@ export class WorkoutsService {
       (found.exercise as any).instructionVideoUrl = videoUrl;
       (found.exercise as any).videoGenerationStatus = 'ready';
       await workout.save();
-    } catch {
+    } catch (err) {
+      console.error('[VideoGen] Generation failed:', (err as Error).message);
       try {
         const workout = await this.workoutModel.findById(workoutId);
         if (!workout) return;

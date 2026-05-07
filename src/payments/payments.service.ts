@@ -1,4 +1,4 @@
-import { Injectable, Logger, UnauthorizedException, BadRequestException } from '@nestjs/common';
+﻿import { Injectable, Logger, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { Model, Types } from 'mongoose';
@@ -43,7 +43,7 @@ export class PaymentsService {
         currency: 'NGN',
         provider: PaymentProvider.PAYSTACK,
         paystackReference: reference,
-        description: `SnapFit ${tier} ${billingCycle}`,
+        description: `Gymtedd ${tier} ${billingCycle}`,
         metadata: { tier, billingCycle },
       });
       return { checkoutUrl: '', provider: PaymentProvider.PAYSTACK, reference };
@@ -66,7 +66,7 @@ export class PaymentsService {
       currency,
       provider: PaymentProvider.PAYPRO_GLOBAL,
       payproReference: orderId,
-      description: `SnapFit ${tier} ${billingCycle}`,
+      description: `Gymtedd ${tier} ${billingCycle}`,
       metadata: { tier, billingCycle },
     });
 
@@ -217,6 +217,6 @@ export class PaymentsService {
   // ── Helpers ───────────────────────────────────────────────────────────
 
   private generateReference(prefix: string): string {
-    return `snapfit_${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `Gymtedd_${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 }

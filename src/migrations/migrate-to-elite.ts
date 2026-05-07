@@ -1,4 +1,4 @@
-/**
+﻿/**
  * One-time migration: upgrade all existing users to the Elite tier.
  *
  * Run via the admin API:
@@ -16,7 +16,7 @@ import * as path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/snapfit';
+const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/Gymtedd';
 
 async function run() {
   await mongoose.connect(MONGO_URI);

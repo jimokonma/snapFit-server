@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+﻿import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Referral, ReferralDocument, ReferralStatus } from '../common/schemas/referral.schema';
@@ -34,7 +34,7 @@ export class ReferralsService {
       code = await this.generateReferralCode(userId);
     }
 
-    const appUrl = process.env.APP_URL ?? 'https://snapfit.app';
+    const appUrl = process.env.APP_URL ?? 'https://Gymtedd.app';
     return { code, referralLink: `${appUrl}/ref/${code}` };
   }
 

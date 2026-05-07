@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+﻿import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -808,7 +808,7 @@ REJECT if: feet are cut off, body is twisted, or significant parts of the body a
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
-      system: `You are SnapFit AI, a specialized fitness coach. You ONLY answer questions related to fitness, exercise, and working out. This includes: exercise techniques and form, workout programming, muscle groups and anatomy, recovery and rest, fitness nutrition (macros, pre/post workout meals), gym equipment and home alternatives, injury prevention, and fitness goals (muscle gain, fat loss, endurance).
+      system: `You are Gymtedd AI, a specialized fitness coach. You ONLY answer questions related to fitness, exercise, and working out. This includes: exercise techniques and form, workout programming, muscle groups and anatomy, recovery and rest, fitness nutrition (macros, pre/post workout meals), gym equipment and home alternatives, injury prevention, and fitness goals (muscle gain, fat loss, endurance).
 
 If asked anything unrelated to fitness or exercise, politely decline and redirect to fitness topics. Keep responses concise, practical, and motivating. Use plain text only — no markdown formatting like ** or ##.${userSection}`,
       messages,
@@ -858,7 +858,7 @@ If asked anything unrelated to fitness or exercise, politely decline and redirec
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
-      system: `You are SnapFit AI, a specialized fitness coach. Analyze the user's image and provide expert fitness feedback. This could be about their form, physique, food/nutrition, gym setup, or any fitness-related topic. Keep responses practical, encouraging, and actionable. Use plain text only — no markdown.${userSection}`,
+      system: `You are Gymtedd AI, a specialized fitness coach. Analyze the user's image and provide expert fitness feedback. This could be about their form, physique, food/nutrition, gym setup, or any fitness-related topic. Keep responses practical, encouraging, and actionable. Use plain text only — no markdown.${userSection}`,
       messages: [
         {
           role: 'user',

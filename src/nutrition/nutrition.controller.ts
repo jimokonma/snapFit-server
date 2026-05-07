@@ -1,4 +1,4 @@
-import {
+﻿import {
   Controller,
   Get,
   Post,
@@ -26,7 +26,7 @@ export class NutritionController {
   // ── Vision Analysis ───────────────────────────────────────────────────
 
   @Post('meals/analyze')
-  @ApiOperation({ summary: 'Analyse meal photo with SnapFit Vision (preview, not saved)' })
+  @ApiOperation({ summary: 'Analyse meal photo with Gymtedd Vision (preview, not saved)' })
   async analyzeMeal(
     @Request() req,
     @Body() body: { imageBase64: string; mediaType: string; clarifications?: string },

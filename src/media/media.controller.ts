@@ -1,4 +1,4 @@
-import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Request } from '@nestjs/common';
+﻿import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Request } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { MediaService } from './media.service';
@@ -20,7 +20,7 @@ export class MediaController {
     @UploadedFile() file: Express.Multer.File,
     @Request() req,
   ) {
-    const url = await this.mediaService.uploadImage(file, `snapfit/users/${req.user.sub}`);
+    const url = await this.mediaService.uploadImage(file, `Gymtedd/users/${req.user.sub}`);
     return { url };
   }
 
@@ -33,7 +33,7 @@ export class MediaController {
     @UploadedFile() file: Express.Multer.File,
     @Request() req,
   ) {
-    const url = await this.mediaService.uploadVideo(file, `snapfit/users/${req.user.sub}`);
+    const url = await this.mediaService.uploadVideo(file, `Gymtedd/users/${req.user.sub}`);
     return { url };
   }
 }

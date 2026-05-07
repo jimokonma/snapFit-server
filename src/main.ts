@@ -37,9 +37,9 @@ async function bootstrap() {
     origin: [
       'http://localhost:3000',
       'http://localhost:3001', 
-      'https://snapfit-server.onrender.com',
-      'https://snapfit.vercel.app',
-      'https://snapfit.netlify.app'
+      'https://gymtedd-server.onrender.com',
+      'https://gymtedd.vercel.app',
+      'https://gymtedd.netlify.app'
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -62,7 +62,7 @@ async function bootstrap() {
   // Add a simple root endpoint for health checks
   app.getHttpAdapter().get('/', (req, res) => {
     res.json({
-      message: 'SnapFit API is running!',
+      message: 'Gymtedd API is running!',
       status: 'ok',
       timestamp: new Date().toISOString(),
       endpoints: {
@@ -77,7 +77,7 @@ async function bootstrap() {
 
   // Swagger documentation
   const config = new DocumentBuilder()
-    .setTitle('SnapFit API')
+    .setTitle('Gymtedd API')
     .setDescription('AI-Powered Personal Workout Planner API')
     .setVersion('1.0')
     .addBearerAuth()
@@ -102,7 +102,7 @@ async function bootstrap() {
     // Get the actual host URL for production
     const host = process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
     
-    console.log(`🚀 SnapFit Backend running on port ${port}`);
+    console.log(`🚀 Gymtedd Backend running on port ${port}`);
     console.log(`📚 API Documentation: ${host}/api/docs`);
     console.log(`🔍 Test endpoint: ${host}/`);
     console.log(`🏥 Health check: ${host}/health`);

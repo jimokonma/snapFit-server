@@ -15,7 +15,7 @@ export class EmailService {
     } else {
       this.resend = new Resend(apiKey);
     }
-    this.from = this.configService.get<string>('RESEND_FROM_EMAIL', 'SnapFit <onboarding@resend.dev>');
+    this.from = this.configService.get<string>('RESEND_FROM_EMAIL', 'Gymtedd <onboarding@resend.dev>');
   }
 
   private getEmailHtml(title: string, content: string, otp?: string): string {
@@ -37,7 +37,7 @@ export class EmailService {
                 <tr>
                   <td style="background: linear-gradient(135deg, #EF4444 0%, #F59E0B 100%); border-radius: 16px 16px 0 0; padding: 36px 40px; text-align: center;">
                     <div style="display: inline-block; background: rgba(0,0,0,0.15); border-radius: 12px; padding: 10px 20px; margin-bottom: 12px;">
-                      <span style="color: white; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase;">SNAP</span><span style="color: rgba(255,255,255,0.75); font-size: 26px; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase;">FIT</span>
+                      <span style="color: white; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase;">GYM</span><span style="color: rgba(255,255,255,0.75); font-size: 26px; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase;">TEDD</span>
                     </div>
                     <p style="color: rgba(255,255,255,0.85); margin: 0; font-size: 14px; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 500;">Your AI-Powered Workout Companion</p>
                   </td>
@@ -70,7 +70,7 @@ export class EmailService {
                 <tr>
                   <td style="background-color: #0D1117; border-radius: 0 0 16px 16px; padding: 20px 40px; text-align: center; border-top: 1px solid #1F2937;">
                     <p style="color: #4B5563; margin: 0 0 6px; font-size: 12px;">If you didn't request this, you can safely ignore this email.</p>
-                    <p style="color: #374151; margin: 0; font-size: 11px;">&copy; 2026 SnapFit. All rights reserved.</p>
+                    <p style="color: #374151; margin: 0; font-size: 11px;">&copy; 2026 Gymtedd. All rights reserved.</p>
                   </td>
                 </tr>
 
@@ -101,7 +101,7 @@ export class EmailService {
       </p>`,
       otp,
     );
-    await this.send(email, 'Verify Your SnapFit Account', html);
+    await this.send(email, 'Verify Your Gymtedd Account', html);
   }
 
   async sendPasswordResetEmail(email: string, otp: string): Promise<void> {
@@ -112,14 +112,14 @@ export class EmailService {
       </p>`,
       otp,
     );
-    await this.send(email, 'Reset Your SnapFit Password', html);
+    await this.send(email, 'Reset Your Gymtedd Password', html);
   }
 
   async sendWelcomeEmail(email: string, firstName: string): Promise<void> {
     const html = this.getEmailHtml(
       `You're in, ${firstName}! &#x1F525;`,
       `<p style="color: #9CA3AF; line-height: 1.7; margin: 0 0 24px; font-size: 15px;">
-        Your email is verified and your SnapFit account is ready. Let's build something extraordinary.
+        Your email is verified and your Gymtedd account is ready. Let's build something extraordinary.
       </p>
       <div style="background: #1F2937; border-radius: 12px; padding: 24px; margin: 0 0 24px; border-left: 4px solid #EF4444;">
         <h3 style="color: #F9FAFB; margin: 0 0 16px; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Next Steps</h3>
@@ -151,6 +151,6 @@ export class EmailService {
         </table>
       </div>`,
     );
-    await this.send(email, "Welcome to SnapFit - Let's Start Your Fitness Journey!", html);
+    await this.send(email, "Welcome to Gymtedd - Let's Start Your Fitness Journey!", html);
   }
 }

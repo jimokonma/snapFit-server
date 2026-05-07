@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
+﻿import { Injectable, UnauthorizedException, ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -295,7 +295,7 @@ export class AuthService {
     const sanitizedUser = this.getSafeUserData(user);
 
     return { 
-      message: 'Email verified successfully! Welcome to SnapFit!',
+      message: 'Email verified successfully! Welcome to Gymtedd!',
       user: sanitizedUser
     };
   }
@@ -545,7 +545,7 @@ export class AuthService {
 
     const uploadPromises = files.map(async (file, index) => {
       const photoType = photoTypes[index];
-      const folder = `snapfit/users/${userId}/body-photos`;
+      const folder = `Gymtedd/users/${userId}/body-photos`;
       const url = await this.mediaService.uploadImage(file, folder);
       return { photoType, url };
     });

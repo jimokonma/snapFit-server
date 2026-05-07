@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+﻿import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from './email.service';
 import { Resend } from 'resend';
@@ -139,7 +139,7 @@ describe('EmailService', () => {
       expect(mockResendInstance.emails.send).toHaveBeenCalledWith({
         from: 'test@example.com',
         to: email,
-        subject: 'Verify Your SnapFit Account',
+        subject: 'Verify Your Gymtedd Account',
         html: expect.stringContaining(otp),
       });
     });
@@ -184,7 +184,7 @@ describe('EmailService', () => {
       expect(mockTransporter.sendMail).toHaveBeenCalledWith({
         from: 'test@gmail.com',
         to: email,
-        subject: 'Verify Your SnapFit Account',
+        subject: 'Verify Your Gymtedd Account',
         html: expect.stringContaining(otp),
       });
     });
@@ -225,7 +225,7 @@ describe('EmailService', () => {
       expect(mockResendInstance.emails.send).toHaveBeenCalledWith({
         from: 'test@example.com',
         to: email,
-        subject: 'Reset Your SnapFit Password',
+        subject: 'Reset Your Gymtedd Password',
         html: expect.stringContaining(otp),
       });
     });
@@ -253,7 +253,7 @@ describe('EmailService', () => {
       expect(mockResendInstance.emails.send).toHaveBeenCalledWith({
         from: 'test@example.com',
         to: email,
-        subject: "Welcome to SnapFit - Let's Start Your Fitness Journey!",
+        subject: "Welcome to Gymtedd - Let's Start Your Fitness Journey!",
         html: expect.stringContaining(firstName),
       });
     });

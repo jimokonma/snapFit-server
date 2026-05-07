@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+﻿import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDocument } from '../common/schemas/user.schema';
@@ -71,8 +71,8 @@ export class UsersService {
       if (uploadIdx === -1) return null;
       let path = url.substring(uploadIdx + 8);
       // Skip past transformations/version to find the folder path
-      const snapfitIdx = path.indexOf('snapfit/');
-      if (snapfitIdx !== -1) path = path.substring(snapfitIdx);
+      const GymteddIdx = path.indexOf('Gymtedd/');
+      if (GymteddIdx !== -1) path = path.substring(GymteddIdx);
       const dotIdx = path.lastIndexOf('.');
       return dotIdx !== -1 ? path.substring(0, dotIdx) : path;
     } catch {
@@ -95,7 +95,7 @@ export class UsersService {
     // Upload files to Cloudinary and map them to body photo types
     const uploadPromises = files.map(async (file, index) => {
       const photoType = this.getPhotoTypeFromIndex(index);
-      const folder = `snapfit/users/${userId}/body-photos`;
+      const folder = `Gymtedd/users/${userId}/body-photos`;
       const url = await this.mediaService.uploadImage(file, folder);
       return { photoType, url };
     });

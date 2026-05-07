@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+﻿import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Progress, ProgressDocument } from '../common/schemas/progress.schema';
@@ -16,8 +16,8 @@ export class ProgressService {
       const uploadIdx = url.indexOf('/upload/');
       if (uploadIdx === -1) return null;
       let path = url.substring(uploadIdx + 8);
-      const snapfitIdx = path.indexOf('snapfit/');
-      if (snapfitIdx !== -1) path = path.substring(snapfitIdx);
+      const GymteddIdx = path.indexOf('Gymtedd/');
+      if (GymteddIdx !== -1) path = path.substring(GymteddIdx);
       const dotIdx = path.lastIndexOf('.');
       return dotIdx !== -1 ? path.substring(0, dotIdx) : path;
     } catch {

@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: snapfit-backend
+    name: gymtedd-backend
     env: node
     plan: free
     rootDir: backend
@@ -11,7 +11,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: RENDER_EXTERNAL_URL
-        value: https://snapfit-server.onrender.com
+        value: https://gymtedd-server.onrender.com
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET

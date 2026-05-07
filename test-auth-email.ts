@@ -1,4 +1,4 @@
-import * as dotenv from 'dotenv';
+﻿import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as nodemailer from 'nodemailer';
 
@@ -46,16 +46,16 @@ async function testAuthEmailFlows() {
     const verificationEmail = {
       from: gmailUser,
       to: testEmail,
-      subject: 'Verify Your SnapFit Account',
+      subject: 'Verify Your Gymtedd Account',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #228B22, #32CD32); padding: 30px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">SnapFit</h1>
+            <h1 style="color: white; margin: 0; font-size: 28px;">Gymtedd</h1>
             <p style="color: white; margin: 10px 0 0 0; font-size: 16px;">Your AI-Powered Workout Companion</p>
           </div>
           
           <div style="padding: 30px; background: #f9f9f9;">
-            <h2 style="color: #333; margin-bottom: 20px;">Welcome to SnapFit!</h2>
+            <h2 style="color: #333; margin-bottom: 20px;">Welcome to Gymtedd!</h2>
             <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
               Thank you for signing up! To complete your registration and start your fitness journey, 
               please verify your email address using the OTP code below.
@@ -73,13 +73,13 @@ async function testAuthEmailFlows() {
             </p>
             
             <p style="color: #666; line-height: 1.6; margin-top: 30px; font-size: 14px;">
-              If you didn't create an account with SnapFit, please ignore this email.
+              If you didn't create an account with Gymtedd, please ignore this email.
             </p>
           </div>
           
           <div style="background: #333; padding: 20px; text-align: center;">
             <p style="color: #999; margin: 0; font-size: 12px;">
-              © 2024 SnapFit. All rights reserved.
+              © 2024 Gymtedd. All rights reserved.
             </p>
           </div>
         </div>
@@ -111,11 +111,11 @@ async function testAuthEmailFlows() {
     const resetEmail = {
       from: gmailUser,
       to: testEmail,
-      subject: 'Reset Your SnapFit Password',
+      subject: 'Reset Your Gymtedd Password',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #228B22, #32CD32); padding: 30px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">SnapFit</h1>
+            <h1 style="color: white; margin: 0; font-size: 28px;">Gymtedd</h1>
             <p style="color: white; margin: 10px 0 0 0; font-size: 16px;">Your AI-Powered Workout Companion</p>
           </div>
           
@@ -143,7 +143,7 @@ async function testAuthEmailFlows() {
           
           <div style="background: #333; padding: 20px; text-align: center;">
             <p style="color: #999; margin: 0; font-size: 12px;">
-              © 2024 SnapFit. All rights reserved.
+              © 2024 Gymtedd. All rights reserved.
             </p>
           </div>
         </div>

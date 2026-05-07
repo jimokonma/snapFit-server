@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+﻿import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { BodyAnalysis, BodyAnalysisDocument, PhotoType } from '../common/schemas/body-analysis.schema';
@@ -48,7 +48,7 @@ export class BodyAnalysisService {
       throw new BadRequestException('Only JPEG and PNG are allowed');
     }
 
-    const folder = `snapfit/users/${userId}/body-photos`;
+    const folder = `Gymtedd/users/${userId}/body-photos`;
     const { publicId, signedUrl } = await Promise.race([
       this.mediaService.uploadImagePrivate(file, folder),
       new Promise<never>((_, reject) =>

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+﻿import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SubscriptionTier, BillingCycle, TIER_PRICING_USD } from '../common/schemas/subscription.schema';
 
@@ -57,7 +57,7 @@ export class PayProService {
   ): Promise<PayProCheckoutResult> {
     const amountCents = TIER_PRICING_USD[tier][billingCycle];
     const productId = this.getProductId(tier, billingCycle);
-    const reference = `snapfit_${userId}_${Date.now()}`;
+    const reference = `Gymtedd_${userId}_${Date.now()}`;
 
     const params = new URLSearchParams({
       merchant_id: this.merchantId,

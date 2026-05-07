@@ -1,4 +1,4 @@
-import * as nodemailer from 'nodemailer';
+﻿import * as nodemailer from 'nodemailer';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
@@ -53,18 +53,18 @@ async function testEmail() {
     const mailOptions = {
       from: gmailUser,
       to: testEmail,
-      subject: 'SnapFit - Test Email',
+      subject: 'Gymtedd - Test Email',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #228B22, #32CD32); padding: 30px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">SnapFit</h1>
+            <h1 style="color: white; margin: 0; font-size: 28px;">Gymtedd</h1>
             <p style="color: white; margin: 10px 0 0 0; font-size: 16px;">Email Service Test</p>
           </div>
           
           <div style="padding: 30px; background: #f9f9f9;">
             <h2 style="color: #333; margin-bottom: 20px;">Test Email</h2>
             <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
-              This is a test email from SnapFit. If you received this, your email service is working correctly!
+              This is a test email from Gymtedd. If you received this, your email service is working correctly!
             </p>
             
             <div style="text-align: center; margin: 30px 0;">
@@ -81,7 +81,7 @@ async function testEmail() {
           
           <div style="background: #333; padding: 20px; text-align: center;">
             <p style="color: #999; margin: 0; font-size: 12px;">
-              © 2024 SnapFit. All rights reserved.
+              © 2024 Gymtedd. All rights reserved.
             </p>
           </div>
         </div>

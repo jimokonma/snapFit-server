@@ -1,5 +1,5 @@
 {
-  "name": "snapfit-backend",
+  "name": "gymtedd-backend",
   "version": "1.0.0",
   "description": "AI-Powered Personal Workout Planner Backend",
   "main": "dist/main.js",

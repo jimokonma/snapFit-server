@@ -1,9 +1,9 @@
-# 🔧 SnapFit Server
+﻿# 🔧 Gymtedd Server
 
 <div align="center">
   <img src="../docs/assets/backend-logo.png" alt="Backend Logo" width="100" height="100">
   
-  **NestJS API Server for SnapFit**
+  **NestJS API Server for Gymtedd**
   
   [![API Status](https://img.shields.io/badge/API-Ready-brightgreen.svg)](#)
   [![Documentation](https://img.shields.io/badge/Swagger-Available-blue.svg)](#)
@@ -12,7 +12,7 @@
 
 ## 📖 Overview
 
-The SnapFit backend is a robust NestJS API server that powers the AI-driven fitness platform. It handles user authentication, workout generation, progress tracking, and integrates with various third-party services.
+The Gymtedd backend is a robust NestJS API server that powers the AI-driven fitness platform. It handles user authentication, workout generation, progress tracking, and integrates with various third-party services.
 
 ## 🚀 Quick Start
 
@@ -27,8 +27,8 @@ The SnapFit backend is a robust NestJS API server that powers the AI-driven fitn
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/snapfit.git
-cd snapfit/backend
+git clone https://github.com/your-username/Gymtedd.git
+cd Gymtedd/backend
 
 # Install dependencies
 npm install
@@ -49,7 +49,7 @@ Create a `.env` file in the backend directory with the following variables:
 
 ```env
 # Database
-MONGODB_URI=mongodb://localhost:27017/snapfit
+MONGODB_URI=mongodb://localhost:27017/Gymtedd
 
 # JWT Configuration
 JWT_SECRET=your-super-secret-jwt-key-here
@@ -314,8 +314,8 @@ npm run start:prod
 
 ### Docker
 ```bash
-docker build -t snapfit-backend .
-docker run -p 3000:3000 snapfit-backend
+docker build -t Gymtedd-backend .
+docker run -p 3000:3000 Gymtedd-backend
 ```
 
 ## 📊 API Documentation
@@ -326,7 +326,7 @@ Once the server is running, visit:
 - **Production**: `https://your-domain.com/api`
 
 ### Postman Collection
-Import the Postman collection from `docs/postman/SnapFit-API.postman_collection.json`
+Import the Postman collection from `docs/postman/Gymtedd-API.postman_collection.json`
 
 ## 🔍 Monitoring & Logging
 

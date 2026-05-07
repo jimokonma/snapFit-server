@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+﻿import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary } from 'cloudinary';
 import { FileSecurityService } from '../common/services/file-security.service';
@@ -16,7 +16,7 @@ export class MediaService {
     });
   }
 
-  async uploadImage(file: Express.Multer.File, folder: string = 'snapfit'): Promise<string> {
+  async uploadImage(file: Express.Multer.File, folder: string = 'Gymtedd'): Promise<string> {
     this.fileSecurityService.validateFile(file, 'image');
     const sanitizedFolder = this.fileSecurityService.sanitizeFolderPath(folder);
 
@@ -42,7 +42,7 @@ export class MediaService {
    */
   async uploadImagePrivate(
     file: Express.Multer.File,
-    folder: string = 'snapfit',
+    folder: string = 'Gymtedd',
   ): Promise<{ publicId: string; signedUrl: string }> {
     this.fileSecurityService.validateFile(file, 'image');
     const sanitizedFolder = this.fileSecurityService.sanitizeFolderPath(folder);
@@ -86,7 +86,7 @@ export class MediaService {
     });
   }
 
-  async uploadVideo(file: Express.Multer.File, folder: string = 'snapfit'): Promise<string> {
+  async uploadVideo(file: Express.Multer.File, folder: string = 'Gymtedd'): Promise<string> {
     this.fileSecurityService.validateFile(file, 'video');
     const sanitizedFolder = this.fileSecurityService.sanitizeFolderPath(folder);
     
@@ -113,7 +113,7 @@ export class MediaService {
     });
   }
 
-  async uploadFromUrl(url: string, folder: string = 'snapfit/exercises'): Promise<string> {
+  async uploadFromUrl(url: string, folder: string = 'Gymtedd/exercises'): Promise<string> {
     const isConfigured = !!this.configService.get<string>('CLOUDINARY_CLOUD_NAME');
     if (!isConfigured) return url;
 
@@ -168,7 +168,7 @@ export class MediaService {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
-    return `snapfit/exercise-cache/${slug}`;
+    return `Gymtedd/exercise-cache/${slug}`;
   }
 
   async deleteMedia(publicIdOrUrl: string, resourceType: 'image' | 'video' = 'image'): Promise<void> {

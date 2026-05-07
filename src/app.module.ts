@@ -19,6 +19,7 @@ import { MediaPipeModule } from './mediapipe/mediapipe.module';
 import { NutritionModule } from './nutrition/nutrition.module';
 import { AffiliatesModule } from './affiliates/affiliates.module';
 import { ReferralsModule } from './referrals/referrals.module';
+import { WaitlistModule } from './waitlist/waitlist.module';
 import { AuditLoggerService } from './common/services/audit-logger.service';
 import { SecurityInterceptor } from './common/interceptors/security.interceptor';
 import { AuditLog, AuditLogSchema } from './common/schemas/audit-log.schema';
@@ -48,7 +49,7 @@ import { ErrorLog, ErrorLogSchema } from './common/schemas/error-log.schema';
         limit: 100,
       },
     ]),
-    MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/snapfit'),
+    MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/gymtedd'),
     MongooseModule.forFeature([
       { name: AuditLog.name, schema: AuditLogSchema },
       { name: ErrorLog.name, schema: ErrorLogSchema },
@@ -69,6 +70,7 @@ import { ErrorLog, ErrorLogSchema } from './common/schemas/error-log.schema';
     NutritionModule,
     AffiliatesModule,
     ReferralsModule,
+    WaitlistModule,
   ],
   providers: [
     {

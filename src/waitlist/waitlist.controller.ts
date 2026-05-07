@@ -3,13 +3,24 @@
   HttpCode, HttpStatus, BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { IsEmail, IsOptional, IsString } from 'class-validator';
 import { WaitlistService } from './waitlist.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 class JoinWaitlistBodyDto {
+  @IsEmail()
   email: string;
+
+  @IsOptional()
+  @IsString()
   name?: string;
+
+  @IsOptional()
+  @IsString()
   source?: string;
+
+  @IsOptional()
+  @IsString()
   referrer?: string;
 }
 

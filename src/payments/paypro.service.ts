@@ -84,8 +84,8 @@ export class PayProService {
    */
   verifyWebhookSignature(payload: string, signature: string): boolean {
     if (this.webhookSecret === 'PLACEHOLDER_WEBHOOK_SECRET') {
-      this.logger.warn('PayPro webhook secret not configured — skipping signature verification');
-      return true;
+      this.logger.error('PayPro webhook secret not configured — rejecting webhook');
+      return false;
     }
 
     try {
@@ -94,7 +94,10 @@ export class PayProService {
         .createHmac('sha256', this.webhookSecret)
         .update(payload)
         .digest('hex');
-      return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+      const expectedBuf = Buffer.from(expected, 'hex');
+      const signatureBuf = Buffer.from(signature, 'hex');
+      if (expectedBuf.length !== signatureBuf.length) return false;
+      return crypto.timingSafeEqual(expectedBuf, signatureBuf);
     } catch {
       return false;
     }

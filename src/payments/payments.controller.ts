@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { PayProService } from './paypro.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AdminGuard } from '../admin/guards/admin.guard';
 import { SubscriptionTier, BillingCycle } from '../common/schemas/subscription.schema';
 
 @ApiTags('Payments')
@@ -59,8 +60,11 @@ export class PaymentsController {
     @Headers('x-paystack-signature') signature: string,
     @Body() body: any,
   ) {
+    if (!signature) {
+      throw new UnauthorizedException('Missing Paystack signature');
+    }
     const rawBody = (req as any).rawBody?.toString() ?? JSON.stringify(body);
-    if (signature && !this.paymentsService.verifyPaystackSignature(rawBody, signature)) {
+    if (!this.paymentsService.verifyPaystackSignature(rawBody, signature)) {
       throw new UnauthorizedException('Invalid Paystack signature');
     }
     const { event, data } = body;
@@ -75,15 +79,18 @@ export class PaymentsController {
     @Headers('x-paypro-signature') signature: string,
     @Body() body: any,
   ) {
+    if (!signature) {
+      throw new UnauthorizedException('Missing PayPro signature');
+    }
     const rawBody = (req as any).rawBody?.toString() ?? JSON.stringify(body);
-    await this.paymentsService.handlePayProWebhook(rawBody, signature ?? '', body);
+    await this.paymentsService.handlePayProWebhook(rawBody, signature, body);
     return { status: 'ok' };
   }
 
   // ── Admin ─────────────────────────────────────────────────────────────
 
   @Get('all')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all payments (Admin only)' })
   async getAllPayments() {

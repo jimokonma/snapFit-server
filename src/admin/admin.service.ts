@@ -234,7 +234,8 @@ export class AdminService {
   async updateUserRole(userId: string, role: 'user' | 'admin'): Promise<User> {
     const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('User not found');
-    if ((user as any).email === 'jim.okonma@gmail.com' && role !== 'admin') {
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (adminEmail && (user as any).email === adminEmail && role !== 'admin') {
       throw new BadRequestException('Cannot demote the primary admin');
     }
     const updated = await this.userModel.findByIdAndUpdate(userId, { role }, { new: true });

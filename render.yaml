@@ -11,14 +11,18 @@ services:
       - key: NODE_ENV
         value: production
       - key: RENDER_EXTERNAL_URL
-        value: https://gymtedd-server.onrender.com
+        value: https://snapfit-server.onrender.com
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
         sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
       - key: OPENAI_API_KEY
+        sync: false
+      - key: REPLICATE_API_KEY
         sync: false
       - key: PAYSTACK_SECRET_KEY
         sync: false
@@ -39,7 +43,11 @@ services:
       - key: GMAIL_APP_PASSWORD
         sync: false
       - key: FRONTEND_URL
-        value: https://your-mobile-app-url.com
+        value: https://gymtedd.com
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://gymtedd.com,https://www.gymtedd.com,https://gymtedd.vercel.app,https://gymtedd.netlify.app
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET

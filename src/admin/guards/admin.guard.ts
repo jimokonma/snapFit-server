@@ -6,8 +6,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
-const ADMIN_EMAIL = 'jim.okonma@gmail.com';
-
 @Injectable()
 export class AdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
@@ -18,7 +16,8 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException('Authentication required');
     }
 
-    if (user.role !== 'admin' && user.email !== ADMIN_EMAIL) {
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (user.role !== 'admin' && (!adminEmail || user.email !== adminEmail)) {
       throw new ForbiddenException('Admin access required');
     }
 

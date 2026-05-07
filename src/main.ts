@@ -32,15 +32,13 @@ async function bootstrap() {
   // Set global prefix for all routes, excluding health endpoints
   app.setGlobalPrefix('api', { exclude: ['health', 'health/simple'] });
 
-  // Enable CORS with restricted origins
+  // Enable CORS with env-driven allowed origins
+  const corsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+    : ['http://localhost:3000', 'http://localhost:3001'];
+
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001', 
-      'https://gymtedd-server.onrender.com',
-      'https://gymtedd.vercel.app',
-      'https://gymtedd.netlify.app'
-    ],
+    origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -87,12 +85,15 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
 
-  // Ensure the designated admin account has the admin role in the DB
-  const userModel = app.get(getModelToken(User.name));
-  await userModel.updateOne(
-    { email: 'jim.okonma@gmail.com' },
-    { $set: { role: 'admin' } },
-  );
+  // Promote the configured admin email to admin role (idempotent, only runs if ADMIN_EMAIL is set)
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (adminEmail) {
+    const userModel = app.get(getModelToken(User.name));
+    await userModel.updateOne(
+      { email: adminEmail },
+      { $set: { role: 'admin' } },
+    );
+  }
 
   const port = parseInt(process.env.PORT, 10) || 3000;
   

@@ -6,8 +6,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
-const SUPER_ADMIN_EMAIL = 'jim.okonma@gmail.com';
-
 @Injectable()
 export class SuperAdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
@@ -18,7 +16,8 @@ export class SuperAdminGuard implements CanActivate {
       throw new UnauthorizedException('Authentication required');
     }
 
-    if (user.email !== SUPER_ADMIN_EMAIL) {
+    const superAdminEmail = process.env.ADMIN_EMAIL;
+    if (!superAdminEmail || user.email !== superAdminEmail) {
       throw new ForbiddenException('Only the primary admin can manage roles');
     }
 

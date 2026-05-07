@@ -60,15 +60,12 @@ export class AuthService {
     const tokens = this.generateTokens(savedUser);
 
     // Send verification email asynchronously (don't block response)
-    console.log(`📧 Registration: Generated OTP for ${email}: ${emailVerificationToken}`);
-    console.log(`⏰ OTP expires at: ${emailVerificationExpires}`);
     this.emailService.sendVerificationEmail(email, emailVerificationToken).catch(err => {
       console.error('❌ Background email send failed:', err.message);
-      console.error(`📧 OTP for manual verification: ${emailVerificationToken}`);
     });
 
-    return { 
-      user: savedUser, 
+    return {
+      user: savedUser,
       tokens,
       message: 'Registration successful! Please check your email to verify your account.'
     };
@@ -80,38 +77,23 @@ export class AuthService {
     // Find user
     const user = await this.userModel.findOne({ email });
     if (!user) {
-      console.error(`❌ Login failed: User not found for email: ${email}`);
       throw new UnauthorizedException('Invalid credentials');
     }
 
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      console.error(`❌ Login failed: Invalid password for email: ${email}`);
       throw new UnauthorizedException('Invalid credentials');
     }
 
     // Check if email is verified
     if (!user.isEmailVerified) {
-      console.warn(`⚠️  Login: Email not verified for ${email}`);
-      console.warn(`📧 Email verification token: ${user.emailVerificationToken}`);
-      console.warn(`⏰ Token expires: ${user.emailVerificationExpires}`);
-      
-      // In development mode, allow login without email verification if SKIP_EMAIL_VERIFICATION is set
-      const skipEmailVerification = this.configService.get<string>('SKIP_EMAIL_VERIFICATION') === 'true';
-      if (skipEmailVerification && this.configService.get<string>('NODE_ENV') === 'development') {
-        console.warn('⚠️  DEVELOPMENT MODE: Allowing login without email verification');
-        user.isEmailVerified = true;
-        await user.save();
-      } else {
-        // Return user info but indicate email verification is required
-        const sanitizedUser = this.getSafeUserData(user);
-        return { 
-          user: sanitizedUser, 
-          tokens: null,
-          requiresEmailVerification: true
-        };
-      }
+      const sanitizedUser = this.getSafeUserData(user);
+      return {
+        user: sanitizedUser,
+        tokens: null,
+        requiresEmailVerification: true
+      };
     }
 
     // Update isActive locally if needed (before generating tokens)
@@ -122,7 +104,7 @@ export class AuthService {
     // Generate tokens (this will save refreshToken and isActive in a single DB operation)
     const tokens = this.generateTokens(user);
 
-    console.log(`✅ Login successful for user: ${email}`);
+    // Login successful
 
     // Return only essential user information (no need to fetch again)
     const sanitizedUser = this.getSafeUserData(user);
@@ -321,11 +303,8 @@ export class AuthService {
     await user.save();
 
     // Send verification email asynchronously (don't block response)
-    console.log(`📧 Registration: Generated OTP for ${email}: ${emailVerificationToken}`);
-    console.log(`⏰ OTP expires at: ${emailVerificationExpires}`);
     this.emailService.sendVerificationEmail(email, emailVerificationToken).catch(err => {
       console.error('❌ Background email send failed:', err.message);
-      console.error(`📧 OTP for manual verification: ${emailVerificationToken}`);
     });
 
     return { message: 'Verification email sent successfully!' };
@@ -336,8 +315,6 @@ export class AuthService {
 
     const user = await this.userModel.findOne({ email });
     if (!user) {
-      // Don't reveal if user exists or not for security
-      console.log(`📧 Password reset requested for non-existent email: ${email}`);
       return { message: 'If an account with that email exists, we\'ve sent you a password reset code.' };
     }
 
@@ -349,13 +326,9 @@ export class AuthService {
     user.passwordResetExpires = passwordResetExpires;
     await user.save();
 
-    console.log(`📧 Password reset OTP generated for ${email}: ${otp}`);
-    console.log(`⏰ OTP expires at: ${passwordResetExpires}`);
-
     // Send password reset email asynchronously (don't block response)
     this.emailService.sendPasswordResetEmail(email, otp).catch(err => {
       console.error('❌ Background email send failed:', err.message);
-      console.error(`📧 Password reset OTP for ${email}: ${otp}`);
     });
 
     return { message: 'If an account with that email exists, we\'ve sent you a password reset code.' };
@@ -374,7 +347,6 @@ export class AuthService {
       : null;
 
     if (!user || storedToken !== otp) {
-      console.error(`❌ Password reset failed: Invalid or expired OTP for email: ${email}`);
       throw new BadRequestException('Invalid or expired reset code. Please request a new code.');
     }
 
@@ -386,7 +358,7 @@ export class AuthService {
     user.passwordResetExpires = undefined;
     await user.save();
 
-    console.log(`✅ Password reset successful for user: ${email}`);
+    // Password reset successful
 
     return { message: 'Password reset successfully!' };
   }
@@ -412,44 +384,56 @@ export class AuthService {
     const { accessToken } = googleAuthDto;
 
     try {
-      // Verify Google access token and get user info
-      const response = await fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${accessToken}`);
-      const googleUser = await response.json();
-
-      if (!googleUser.email) {
+      // Validate the access token via Google's tokeninfo endpoint (verifies signature + expiry)
+      const tokenInfoRes = await fetch(
+        `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${encodeURIComponent(accessToken)}`,
+      );
+      if (!tokenInfoRes.ok) {
         throw new UnauthorizedException('Invalid Google token');
       }
+      const tokenInfo = await tokenInfoRes.json();
+
+      if (tokenInfo.error || !tokenInfo.email || !tokenInfo.verified_email) {
+        throw new UnauthorizedException('Invalid Google token');
+      }
+
+      // Fetch full profile (given_name, family_name, etc.)
+      const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!profileRes.ok) {
+        throw new UnauthorizedException('Invalid Google token');
+      }
+      const googleUser = await profileRes.json();
 
       let user = await this.userModel.findOne({ email: googleUser.email });
 
       if (!user) {
-        // Create new user
         user = new this.userModel({
           email: googleUser.email,
           firstName: googleUser.given_name,
           lastName: googleUser.family_name,
           googleId: googleUser.id,
-          isEmailVerified: true, // Google emails are pre-verified
+          isEmailVerified: true,
           freeTrialStartDate: new Date(),
         });
         user = await user.save();
       } else {
-        // Update existing user with Google ID
         user.googleId = googleUser.id;
-        user.isEmailVerified = true; // Ensure email is verified for Google users
+        user.isEmailVerified = true;
         user = await user.save();
       }
 
       const tokens = this.generateTokens(user);
       return { user, tokens };
     } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException('Invalid Google token');
     }
   }
 
   // Step-by-step onboarding methods
   async saveProfileInfo(userId: string, profileInfoDto: any): Promise<{ message: string; user: any }> {
-    console.log(`[saveProfileInfo] userId=${userId} dto=${JSON.stringify(profileInfoDto)}`);
     const { gender, age, height, weight, experienceLevel, workoutHistory, daysPerWeek, injuries } = profileInfoDto;
 
     let user: any;
